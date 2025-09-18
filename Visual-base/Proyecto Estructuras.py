@@ -202,12 +202,59 @@
 
 
 
-
+import requests
 import random
 import math
 import json
+import os
 from datetime import datetime
 import pygame
+
+
+
+
+# -------------------- Configuración API --------------------
+
+BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
+
+def obtener_datos_API(endpoint, archivo):
+    try:
+        r = requests.get(BASE_URL + endpoint, timeout=5)
+        datos = r.json()
+        with open(archivo, "w") as f:
+            json.dump(datos, f, indent=2)
+        print(f"Archivo {archivo} actualizado desde el API.")
+        return datos
+    except:
+        print(f"No se pudo conectar. Revisando archivo {archivo}...")
+        if os.path.exists(archivo):
+            with open(archivo, "r") as f:
+                return json.load(f)
+        else:
+            print("No hay datos disponibles.")
+            return None
+
+def cargarDatosAPI():
+    mapa = obtener_datos_API("/city/map", "ciudad.json")
+    jobs = obtener_datos_API("/city/jobs", "pedidos.json")
+    clima = obtener_datos_API("/city/weather", "weather.json")
+    return mapa, jobs, clima
+
+def cargar_json(nombre_archivo):
+    if os.path.exists(nombre_archivo):
+        with open(nombre_archivo, "r") as f:
+            datos = json.load(f)
+            print(f" {nombre_archivo} cargado correctamente.")
+            return datos
+    else:
+        print(f"No se encontró {nombre_archivo}")
+        return None
+
+cargarDatosAPI()
+#---------ejemplos----------
+#cargar_json("ciudad.json")
+#cargar_json("pedidos.json") 
+#cargar_json("weather.json")
 
 # -------------------- Configuración general --------------------
 ANCHO, ALTO = 1500, 900
@@ -577,5 +624,7 @@ while corriendo:
     pantalla.blit(img_jugador, jugador_rect.topleft)
     dibujar_hud()
     pygame.display.flip()
+
+
 
 pygame.quit()
