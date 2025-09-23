@@ -180,66 +180,8 @@ CLIMAS_ES = {
     "cold": "Frío"
 }
 
-def leer_clima_inicial_desde_apifile(archivo="weather.json"):
-    """Intenta extraer una descripción climática desde weather.json (varios formatos)"""
-    if not os.path.exists(archivo):
-        return None
-    try:
-        with open(archivo, "r", encoding="utf-8") as f:
-            datos = json.load(f)
-    except Exception:
-        return None
-
-    # intentar varios campos comunes
-    posibles = []
-    if isinstance(datos, dict):
-        # buscar claves probables
-        for k in ("weather", "condition", "clima", "descripcion", "description"):
-            if k in datos:
-                posibles.append(datos[k])
-        # a veces el json tiene lista bajo 'weather' con dicts
-        if "weather" in datos and isinstance(datos["weather"], list) and datos["weather"]:
-            w0 = datos["weather"][0]
-            if isinstance(w0, dict):
-                for k in ("main", "description", "condition"):
-                    if k in w0:
-                        posibles.append(w0[k])
-    elif isinstance(datos, list) and datos:
-        first = datos[0]
-        if isinstance(first, dict):
-            for k in ("weather", "condition", "description", "main"):
-                if k in first:
-                    posibles.append(first[k])
-        elif isinstance(first, str):
-            posibles.append(first)
-
-    # también si el archivo es un simple string
-    if isinstance(datos, str):
-        posibles.append(datos)
-
-    # normalizar y elegir la primera que sea string
-    for p in posibles:
-        if isinstance(p, str):
-            s = p.strip().lower()
-            return s
-    return None
-
-# Inicializar clima a partir del archivo API (si existe), mapeando español->inglés
-inicial_api = leer_clima_inicial_desde_apifile("weather.json")
-if inicial_api:
-    clima_inicial = CLIMAS_MAP.get(inicial_api, None)
-    if clima_inicial is None:
-        # intentar palabras sueltas (p.ej. "lluvia" dentro de "posible lluvia")
-        for esp, ing in CLIMAS_MAP.items():
-            if esp in inicial_api:
-                clima_inicial = ing
-                break
-    if not clima_inicial:
-        clima_inicial = "clear"
-else:
-    clima_inicial = "clear"
-
-clima_actual = clima_inicial
+# Estado inicial del clima
+clima_actual = "clear"
 intensidad_actual = random.uniform(0.3, 0.7)
 # Guardar intensidad de inicio para interpolar correctamente
 intensidad_inicio = intensidad_actual
