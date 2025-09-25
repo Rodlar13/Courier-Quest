@@ -45,7 +45,8 @@ cargarDatosAPI()
 # -------------------- Configuración general --------------------
 ANCHO, ALTO = 1500, 900
 FPS = 60
-VEL = 300.0  # píxeles/seg (se usa para movimiento)
+CELDA = 48
+v0 = 3 * CELDA  # velocidad base (3 celdas/seg = 144 px/seg)
 SAVE_FILE = "partida.json"
 RECORDS_FILE = "records.json"
 
@@ -106,9 +107,170 @@ tiene_paquete = False
 
 ultimo_tick_energia = pygame.time.get_ticks()
 
-# -------------------- Clima (integrado, robusto) --------------------
 
-# Matriz de transición de Markov para todos los climas
+# -------------------- Funciones auxiliares --------------------
+def dentro_pantalla(rect):
+    return pantalla.get_rect().contains(rect)
+
+def punto_valido(x, y):
+    p = pygame.Rect(0, 0, 32, 32)
+    p.center = (x, y)
+    if not dentro_pantalla(p): return False
+    for w in OBSTACULOS:
+        if p.colliderect(w): return False
+    return True
+
+def spawnear_cliente(lejos_de, min_dist=180):
+    for _ in range(400):
+        x = random.randint(40, ANCHO - 40)
+        y = random.randint(40, ALTO - 40)
+        if punto_valido(x, y) and math.hypot(x - lejos_de[0], y - lejos_de[1]) >= min_dist:
+            return img_cliente.get_rect(center=(x, y))
+    return img_cliente.get_rect(center=(80, 80))
+
+def nuevo_pedido():
+    pickup = spawnear_cliente(jugador_rect.center)
+    dropoff = spawnear_cliente(pickup.center)
+    return {
+        "pickup": pickup,
+        "dropoff": dropoff,
+        "payout": random.randint(10, 50),
+        "peso": random.randint(1, 10),
+        "deadline": pygame.time.get_ticks() + random.randint(60000, 120000)
+    }
+
+def mover_con_colision(rect: pygame.Rect, dx: float, dy: float, paredes):
+    # X
+    rect.x += int(round(dx))
+    for w in paredes:
+        if rect.colliderect(w):
+            if dx > 0: rect.right = w.left
+            elif dx < 0: rect.left = w.right
+    # Y
+    rect.y += int(round(dy))
+    for w in paredes:
+        if rect.colliderect(w):
+            if dy > 0: rect.bottom = w.top
+            elif dy < 0: rect.top = w.bottom
+    rect.clamp_ip(pantalla.get_rect())
+
+# -------------------- Guardar/Cargar partida --------------------
+def snapshot_partida():
+    return {
+        "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
+        "pedido": {
+            "pickup": [pedido_actual["pickup"].x, pedido_actual["pickup"].y,
+                       pedido_actual["pickup"].width, pedido_actual["pickup"].height],
+            "dropoff": [pedido_actual["dropoff"].x, pedido_actual["dropoff"].y,
+                        pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
+            "payout": pedido_actual["payout"],
+            "peso": pedido_actual["peso"],
+            "deadline": pedido_actual["deadline"]
+        } if pedido_actual else None,
+        "tiene_paquete": tiene_paquete,
+        "entregas": entregas,
+        "energia": energia,
+        "dinero": dinero_ganado,
+        "reputacion": reputacion,
+        "msg": msg,
+        "clima_actual": clima_actual if 'clima_actual' in globals() else "clear",
+    }
+
+def aplicar_partida(data):
+    global jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg, clima_actual
+    jx, jy = data["jugador"]["x"], data["jugador"]["y"]
+    jugador_rect.topleft = (int(jx), int(jy))
+
+    p = data.get("pedido")
+    if p:
+        pedido_actual = {
+            "pickup": pygame.Rect(*p["pickup"]),
+            "dropoff": pygame.Rect(*p["dropoff"]),
+            "payout": p["payout"],
+            "peso": p["peso"],
+            "deadline": p["deadline"]
+        }
+    else:
+        pedido_actual = nuevo_pedido()
+
+    # Validar pickup/dropoff no esté en obstáculo o fuera pantalla
+    if pedido_actual and (any(pedido_actual["pickup"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["pickup"])):
+        pedido_actual["pickup"] = spawnear_cliente(jugador_rect.center)
+    if pedido_actual and (any(pedido_actual["dropoff"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["dropoff"])):
+        pedido_actual["dropoff"] = spawnear_cliente(pedido_actual["pickup"].center)
+
+    tiene_paquete = data.get("tiene_paquete", False)
+    entregas = int(data.get("entregas", 0))
+    energia = int(data.get("energia", 100))
+    dinero_ganado = int(data.get("dinero", 0))
+    reputacion = int(data.get("reputacion", 70))
+    msg = data.get("msg", "Partida cargada")
+    # clima_actual se carga si existe, si no, queda como está (inicia en clear)
+    saved_clima = data.get("clima_actual")
+    if saved_clima:
+        clima_actual = saved_clima
+
+def guardar_partida():
+    try:
+        with open(SAVE_FILE, "w", encoding="utf-8") as f:
+            json.dump(snapshot_partida(), f, ensure_ascii=False, indent=2)
+        return True, "Partida guardada"
+    except Exception as e:
+        return False, f"Error al guardar: {e}"
+
+def cargar_partida():
+    try:
+        with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        aplicar_partida(data)
+        return True, "Partida cargada"
+    except FileNotFoundError:
+        return False, "No hay partida guardada"
+    except Exception as e:
+        return False, f"Error al cargar: {e}"
+
+# -------------------- Records --------------------
+def cargar_records():
+    try:
+        with open(RECORDS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
+
+def guardar_records(lista):
+    try:
+        with open(RECORDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(lista, f, ensure_ascii=False, indent=2)
+    except:
+        pass
+
+def registrar_record():
+    recs = cargar_records()
+    recs.append({
+        "entregas": int(entregas),
+        "dinero": int(dinero_ganado),
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    # Top 10 por entregas desc, dinero desc
+    recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
+    recs = recs[:10]
+    guardar_records(recs)
+
+# -------------------- Sistema de Clima --------------------
+# Mapeo reducido: display en español
+CLIMAS_ES = {
+    "clear": "Despejado",
+    "clouds": "Nublado",
+    "rain_light": "Lluvia ligera",
+    "rain": "Lluvia",
+    "storm": "Tormenta",
+    "fog": "Niebla",
+    "wind": "Viento",
+    "heat": "Calor",
+    "cold": "Frío"
+}
+
+# Matriz de transición Markov (completa)
 TRANSICIONES = {
     "clear": [
         ("clear", 0.40), ("clouds", 0.25), ("rain_light", 0.10),
@@ -148,47 +310,14 @@ TRANSICIONES = {
     ]
 }
 
-# Mapeos español <-> inglés
-CLIMAS_MAP = {
-    "despejado": "clear",
-    "soleado": "clear",
-    "nublado": "clouds",
-    "parcialmente nublado": "clouds",
-    "lluvia ligera": "rain_light",
-    "llovizna": "rain_light",
-    "lluvia": "rain",
-    "tormenta": "storm",
-    "tormentoso": "storm",
-    "niebla": "fog",
-    "bruma": "fog",
-    "viento": "wind",
-    "calor": "heat",
-    "frío": "cold",
-    "frio": "cold",
-}
-
-# Inglés -> Español para HUD (capitalizado)
-CLIMAS_ES = {
-    "clear": "Despejado",
-    "clouds": "Nublado",
-    "rain_light": "Lluvia ligera",
-    "rain": "Lluvia",
-    "storm": "Tormenta",
-    "fog": "Niebla",
-    "wind": "Viento",
-    "heat": "Calor",
-    "cold": "Frío"
-}
-
-# Estado inicial del clima
+# Estado inicial del clima: siempre start en clear
 clima_actual = "clear"
 intensidad_actual = random.uniform(0.3, 0.7)
-# Guardar intensidad de inicio para interpolar correctamente
 intensidad_inicio = intensidad_actual
 clima_objetivo = clima_actual
 intensidad_objetivo = intensidad_actual
 transicion = False
-transicion_inicio = 0  # ms
+transicion_inicio = 0  # ms (usamos time en segundos en varias partes, aquí usaremos time.get_ticks ms)
 transicion_duracion = 0  # ms
 ultimo_cambio_clima = pygame.time.get_ticks()  # ms
 duracion_actual = random.uniform(45000, 60000)  # ms
@@ -242,191 +371,7 @@ def actualizar_clima():
         siguiente = elegir_siguiente_clima(clima_actual)
         iniciar_transicion(siguiente, ahora)
 
-# -------------------- Funciones auxiliares del juego --------------------
-
-def dentro_pantalla(rect):
-    return pantalla.get_rect().contains(rect)
-
-def punto_valido(x, y):
-    p = pygame.Rect(0, 0, 32, 32)
-    p.center = (x, y)
-    if not dentro_pantalla(p):
-        return False
-    for w in OBSTACULOS:
-        if p.colliderect(w):
-            return False
-    return True
-
-def spawnear_cliente(lejos_de, min_dist=180):
-    for _ in range(400):
-        x = random.randint(40, ANCHO - 40)
-        y = random.randint(40, ALTO - 40)
-        if punto_valido(x, y) and math.hypot(x - lejos_de[0], y - lejos_de[1]) >= min_dist:
-            return img_cliente.get_rect(center=(x, y))
-    return img_cliente.get_rect(center=(80, 80))
-
-def nuevo_pedido():
-    pickup = spawnear_cliente(jugador_rect.center)
-    dropoff = spawnear_cliente(pickup.center)
-    return {
-        "pickup": pickup,
-        "dropoff": dropoff,
-        "payout": random.randint(10, 50),
-        "peso": random.randint(1, 10),
-        "deadline": pygame.time.get_ticks() + random.randint(60000, 120000)
-    }
-
-def mover_con_colision(rect: pygame.Rect, dx: float, dy: float, paredes):
-    # X
-    rect.x += int(round(dx))
-    for w in paredes:
-        if rect.colliderect(w):
-            if dx > 0:
-                rect.right = w.left
-            elif dx < 0:
-                rect.left = w.right
-    # Y
-    rect.y += int(round(dy))
-    for w in paredes:
-        if rect.colliderect(w):
-            if dy > 0:
-                rect.bottom = w.top
-            elif dy < 0:
-                rect.top = w.bottom
-    rect.clamp_ip(pantalla.get_rect())
-
-# -------------------- Guardar/Cargar partida --------------------
-
-def snapshot_partida():
-    return {
-        "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
-        "pedido": {
-            "pickup": [pedido_actual["pickup"].x, pedido_actual["pickup"].y,
-                       pedido_actual["pickup"].width, pedido_actual["pickup"].height],
-            "dropoff": [pedido_actual["dropoff"].x, pedido_actual["dropoff"].y,
-                        pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
-            "payout": pedido_actual["payout"],
-            "peso": pedido_actual["peso"],
-            "deadline": pedido_actual["deadline"]
-        } if pedido_actual else None,
-        "tiene_paquete": tiene_paquete,
-        "entregas": entregas,
-        "energia": energia,
-        "dinero": dinero_ganado,
-        "reputacion": reputacion,
-        "msg": msg,
-        "clima_actual": clima_actual,               # estado interno (inglés)
-        "clima_display": CLIMAS_ES.get(clima_actual, clima_actual),  # opcional, para lectura
-        "intensidad_actual": float(intensidad_actual)
-    }
-
-def aplicar_partida(data):
-    global jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg, clima_actual, intensidad_actual, ultimo_cambio_clima, duracion_actual, transicion
-    jx, jy = data["jugador"]["x"], data["jugador"]["y"]
-    jugador_rect.topleft = (int(jx), int(jy))
-
-    p = data.get("pedido")
-    if p:
-        pedido_actual = {
-            "pickup": pygame.Rect(*p["pickup"]),
-            "dropoff": pygame.Rect(*p["dropoff"]),
-            "payout": p["payout"],
-            "peso": p["peso"],
-            "deadline": p["deadline"]
-        }
-    else:
-        pedido_actual = nuevo_pedido()
-
-    # Validar pickup/dropoff
-    if pedido_actual and (any(pedido_actual["pickup"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["pickup"])):
-        pedido_actual["pickup"] = spawnear_cliente(jugador_rect.center)
-    if pedido_actual and (any(pedido_actual["dropoff"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["dropoff"])):
-        pedido_actual["dropoff"] = spawnear_cliente(pedido_actual["pickup"].center)
-
-    tiene_paquete = data.get("tiene_paquete", False)
-    entregas = int(data.get("entregas", 0))
-    energia = int(data.get("energia", 100))
-    dinero_ganado = int(data.get("dinero", 0))
-    reputacion = int(data.get("reputacion", 70))
-    msg = data.get("msg", "Partida cargada")
-
-    # Cargar clima: aceptar tanto inglés como español en archivo de guardado
-    saved_clima = data.get("clima_actual") or data.get("clima_display")
-    if saved_clima:
-        sc = str(saved_clima).strip().lower()
-        # si está en inglés y es conocido:
-        if sc in TRANSICIONES:
-            clima_actual = sc
-        else:
-            # intentar mapear de español a inglés
-            if sc in CLIMAS_MAP:
-                clima_actual = CLIMAS_MAP[sc]
-            else:
-                # intentar buscar palabra dentro del string
-                encontrado = None
-                for esp, ing in CLIMAS_MAP.items():
-                    if esp in sc:
-                        encontrado = ing
-                        break
-                clima_actual = encontrado if encontrado else "clear"
-    else:
-        clima_actual = random.choice(list(TRANSICIONES.keys()))
-
-    intensidad_actual = float(data.get("intensidad_actual", random.uniform(0.3, 0.7)))
-    # Reiniciar temporizadores para evitar un cambio inmediato
-    ultimo_cambio_clima = pygame.time.get_ticks()
-    duracion_actual = random.uniform(45000, 60000)
-    transicion = False
-
-def guardar_partida():
-    try:
-        with open(SAVE_FILE, "w", encoding="utf-8") as f:
-            json.dump(snapshot_partida(), f, ensure_ascii=False, indent=2)
-        return True, "Partida guardada"
-    except Exception as e:
-        return False, f"Error al guardar: {e}"
-
-def cargar_partida():
-    try:
-        with open(SAVE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        aplicar_partida(data)
-        return True, "Partida cargada"
-    except FileNotFoundError:
-        return False, "No hay partida guardada"
-    except Exception as e:
-        return False, f"Error al cargar: {e}"
-
-# -------------------- Records --------------------
-
-def cargar_records():
-    try:
-        with open(RECORDS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
-
-def guardar_records(lista):
-    try:
-        with open(RECORDS_FILE, "w", encoding="utf-8") as f:
-            json.dump(lista, f, ensure_ascii=False, indent=2)
-    except:
-        pass
-
-def registrar_record():
-    recs = cargar_records()
-    recs.append({
-        "entregas": int(entregas),
-        "dinero": int(dinero_ganado),
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-    # Top 10 por entregas desc, dinero desc
-    recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
-    recs = recs[:10]
-    guardar_records(recs)
-
 # -------------------- Dibujo --------------------
-
 def dibujar_fondo_y_obs():
     # Ajustar color base según clima
     base_color = (51, 124, 196)
@@ -444,21 +389,13 @@ def dibujar_fondo_y_obs():
         pygame.draw.rect(pantalla, (170, 120, 80), r, border_radius=6)
         pygame.draw.rect(pantalla, (140, 90, 60), r, 3, border_radius=6)
 
-def dibujar_hud():
-    y = 8
-    linea_clima = f"Clima: {CLIMAS_ES.get(clima_actual, clima_actual)} ({intensidad_actual:.2f})"
-    lineas = (
-        f"Entregas: {entregas}",
-        "WASD/Flechas: mover | Q: aceptar | R: rechazar | E: entregar | G: guardar | ESC: menú",
-        f"Energia: {energia_barras} -> {energia} %",
-        f"Reputación: {reputacion}",
-        f"Dinero ganado: {dinero_ganado} $",
-        linea_clima,
-        msg,
-    )
-    for linea in lineas:
-        pantalla.blit(font.render(linea, True, (255, 255, 255)), (10, y))
-        y += 26
+def dibujar_barra(x, y, valor, max_valor, ancho, alto, color_fondo, color_relleno):
+    # Clamp valor
+    v = max(0, min(valor, max_valor))
+    pygame.draw.rect(pantalla, color_fondo, (x, y, ancho, alto))
+    relleno = int((v / max_valor) * ancho)
+    if relleno > 0:
+        pygame.draw.rect(pantalla, color_relleno, (x, y, relleno, alto))
 
 def dibujar_menu(opciones, seleccionado, titulo="Courier Quest", subtitulo="Usa ↑/↓ y ENTER"):
     pantalla.fill((20, 24, 28))
@@ -487,6 +424,26 @@ def dibujar_records():
             pantalla.blit(font.render(linea, True, (230, 230, 230)), (ANCHO//2 - 280, y))
             y += 34
     pantalla.blit(font.render("ESC: volver", True, (200, 200, 200)), (20, ALTO - 40))
+
+def dibujar_hud():
+    y = 8
+    linea_clima = f"Clima: {CLIMAS_ES.get(clima_actual, clima_actual)} ({intensidad_actual:.2f})"
+    lineas = (
+        "Q: aceptar | R: rechazar | E: entregar | G: guardar | ESC: menú",
+        f"Entregas: {entregas}",
+        f"Dinero ganado: {dinero_ganado} $",
+        f"Reputación: {reputacion}",
+        linea_clima,
+        msg
+    )
+    for linea in lineas:
+        pantalla.blit(font.render(linea, True, (255, 255, 255)), (10, y))
+        y += 26
+
+    # barra de energía (resistencia)
+    # dibujar etiqueta
+    pantalla.blit(font.render("Energía:", True, (255, 255, 255)), (10, y))
+    dibujar_barra(100, y, energia, 100, 200, 18, (60, 60, 60), (0, 200, 0))
 
 # -------------------- Máquina de estados --------------------
 INICIO, MENU, GAME, RECORDS = 0, 1, 2, 3
@@ -532,6 +489,30 @@ while corriendo:
 
     dt = clock.tick(FPS) / 1000.0
     ahora = pygame.time.get_ticks()
+
+    # -------- Velocidad dinámica --------
+    peso_total = pedido_actual["peso"] if (pedido_actual and tiene_paquete) else 0
+    Mpeso = max(0.8, 1 - 0.03 * peso_total)
+    Mrep = 1.03 if reputacion >= 90 else 1.0
+    if energia > 30:
+        Mresistencia = 1.0
+    elif energia > 10:
+        Mresistencia = 0.8
+    else:
+        Mresistencia = 0.0
+    Mclima = {
+        "clear": 1.0,
+        "clouds": 0.97,
+        "rain_light": 0.95,
+        "rain": 0.9,
+        "storm": 0.85,
+        "fog": 0.95,
+        "wind": 0.9,
+        "heat": 0.92,
+        "cold": 0.95
+    }.get(clima_actual, 1.0)
+    surf_weight = 1.0
+    VEL = v0 * Mpeso * Mrep * Mresistencia * Mclima * surf_weight
 
     # Estados de menú
     if estado == MENU:
@@ -582,7 +563,9 @@ while corriendo:
 
     # Disminuir energía una vez por segundo si se está moviendo
     if ahora - ultimo_tick_energia >= 1000:
-        if jugador_x_cambio_positivo or jugador_x_cambio_negativo or jugador_y_cambio_positivo or jugador_y_cambio_negativo:
+        moving = (jugador_x_cambio_positivo != 0.0 or jugador_x_cambio_negativo != 0.0 or
+                  jugador_y_cambio_positivo != 0.0 or jugador_y_cambio_negativo != 0.0)
+        if moving:
             costo_por_clima = {
                 "clear": 1,
                 "clouds": 1,
@@ -658,14 +641,15 @@ while corriendo:
             elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
                 jugador_y_cambio_positivo = 0.0
 
-    # Movimiento fluido
+    # Movimiento fluido (usa las variables de cambio que setean eventos)
     vx_raw = jugador_x_cambio_positivo + jugador_x_cambio_negativo
     vy_raw = jugador_y_cambio_positivo + jugador_y_cambio_negativo
     dx = dy = 0.0
     if vx_raw != 0.0 or vy_raw != 0.0:
         l = math.hypot(vx_raw, vy_raw)
-        ux, uy = vx_raw / l, vy_raw / l
-        dx, dy = ux * VEL * dt, uy * VEL * dt
+        if l != 0:
+            ux, uy = vx_raw / l, vy_raw / l
+            dx, dy = ux * VEL * dt, uy * VEL * dt
     mover_con_colision(jugador_rect, dx, dy, OBSTACULOS)
 
     # Dibujar escena
