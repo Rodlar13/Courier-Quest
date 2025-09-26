@@ -1,0 +1,52 @@
+[
+  {
+    "entregas": 33,
+    "dinero": 0,
+    "fecha": "2025-09-20 07:09:28"
+  },
+  {
+    "entregas": 7,
+    "dinero": 0,
+    "fecha": "2025-09-16 19:57:13"
+  },
+  {
+    "entregas": 7,
+    "dinero": 0,
+    "fecha": "2025-09-16 19:57:16"
+  },
+  {
+    "entregas": 7,
+    "dinero": 0,
+    "fecha": "2025-09-16 20:17:02"
+  },
+  {
+    "entregas": 7,
+    "dinero": 0,
+    "fecha": "2025-09-19 21:40:13"
+  },
+  {
+    "entregas": 6,
+    "dinero": 0,
+    "fecha": "2025-09-16 19:57:04"
+  },
+  {
+    "entregas": 5,
+    "dinero": 1100,
+    "fecha": "2025-09-20 07:17:39"
+  },
+  {
+    "entregas": 5,
+    "dinero": 1100,
+    "fecha": "2025-09-20 07:33:09"
+  },
+  {
+    "entregas": 4,
+    "dinero": 0,
+    "fecha": "2025-09-16 20:00:20"
+  },
+  {
+    "entregas": 3,
+    "dinero": 0,
+    "fecha": "2025-09-16 20:00:16"
+  }
+]
