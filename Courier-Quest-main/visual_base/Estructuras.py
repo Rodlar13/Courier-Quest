@@ -1,20 +1,27 @@
-# main.py
-# -------------------- Librerías -------------------
-import requests
+# Estructuras.py
+# Archivo completo con lógica de juego y reputación según las reglas especificadas.
+
+import os
+import sys
+import json
 import random
 import math
-import json
-import os
-from datetime import datetime
-import pygame
-import time
-import sys
+from datetime import datetime, date
 
-# -------------------- Configuración API --------------------
+# -------------------- imports externos --------------------
+try:
+    import pygame
+except Exception:
+    print("ERROR: pygame no está instalado. Ejecuta 'pip install pygame' y vuelve a intentar.")
+    sys.exit(1)
+
+# -------------------- Configuración API (opcional) --------------------
 BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
+
 
 def obtener_datos_API(endpoint, archivo):
     try:
+        import requests
         r = requests.get(BASE_URL + endpoint, timeout=5)
         datos = r.json()
         with open(archivo, "w", encoding="utf-8") as f:
@@ -22,6 +29,7 @@ def obtener_datos_API(endpoint, archivo):
         print(f"Archivo {archivo} actualizado desde el API.")
         return datos
     except Exception as e:
+        # No fatal: si no hay internet, usar archivo local si existe
         print(f"No se pudo conectar ({e}). Revisando archivo {archivo}...")
         if os.path.exists(archivo):
             try:
@@ -29,24 +37,27 @@ def obtener_datos_API(endpoint, archivo):
                     return json.load(f)
             except Exception:
                 return None
-        else:
-            print("No hay datos disponibles.")
-            return None
+        return None
+
 
 def cargarDatosAPI():
-    mapa = obtener_datos_API("/city/map", "ciudad.json")
-    jobs = obtener_datos_API("/city/jobs", "pedidos.json")
-    clima = obtener_datos_API("/city/weather", "weather.json")
-    return mapa, jobs, clima
+    # llamadas opcionales, no necesarias para que el juego funcione
+    try:
+        mapa = obtener_datos_API("/city/map", "ciudad.json")
+        jobs = obtener_datos_API("/city/jobs", "pedidos.json")
+        clima = obtener_datos_API("/city/weather", "weather.json")
+        return mapa, jobs, clima
+    except Exception:
+        return None, None, None
 
-# Intentamos cargar (no es crítico fallar)
+# Intentar cargar datos (no obligatorio)
 cargarDatosAPI()
 
 # -------------------- Configuración general --------------------
 ANCHO, ALTO = 1500, 900
 FPS = 60
 CELDA = 48
-v0 = 3 * CELDA  # velocidad base (3 celdas/seg = 144 px/seg)
+v0 = 3 * CELDA  # velocidad base (px/seg)
 SAVE_FILE = "partida.json"
 RECORDS_FILE = "records.json"
 
@@ -54,26 +65,39 @@ pygame.init()
 pantalla = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Courier Quest")
 
+# Fuentes
+font = pygame.font.SysFont(None, 22)
+font_big = pygame.font.SysFont(None, 44)
+
 # -------------------- Imágenes --------------------
 TAM_JUGADOR = (48, 48)
 TAM_CLIENTE = (42, 42)
 TAM_ICONO = (32, 32)
 
-# Cargar imágenes (termina si faltan)
-try:
-    icono = pygame.image.load("mensajero.png")
-    icono = pygame.transform.smoothscale(icono, TAM_ICONO)
-    pygame.display.set_icon(icono)
 
-    img_jugador = pygame.image.load("mensajero.png").convert_alpha()
-    img_jugador = pygame.transform.smoothscale(img_jugador, TAM_JUGADOR)
+def cargar_imagen_robusta(nombre, size=None, exit_on_fail=False):
+    """Intenta cargar una imagen desde el directorio del script. Si falla, retorna una superficie simple.
+    Si exit_on_fail es True terminará el programa."""
+    ruta = os.path.join(os.path.dirname(__file__), nombre)
+    try:
+        img = pygame.image.load(ruta)
+        if size:
+            img = pygame.transform.smoothscale(img, size)
+        return img.convert_alpha()
+    except Exception as e:
+        print(f"Aviso: no se pudo cargar {nombre}: {e}")
+        if exit_on_fail:
+            pygame.quit()
+            sys.exit(f"Coloca {nombre} en la carpeta y vuelve a intentar.")
+        # fallback: generar superficie identificable
+        surf = pygame.Surface(size if size else (48, 48), pygame.SRCALPHA)
+        surf.fill((200, 80, 80, 255))
+        return surf
 
-    img_cliente = pygame.image.load("audiencia.png").convert_alpha()
-    img_cliente = pygame.transform.smoothscale(img_cliente, TAM_CLIENTE)
-except Exception as e:
-    print("No se pudieron cargar imágenes:", e)
-    pygame.quit()
-    sys.exit("Coloca mensajero.png y audiencia.png en la carpeta y vuelve a intentar.")
+icono = cargar_imagen_robusta("mensajero.png", TAM_ICONO, exit_on_fail=False)
+pygame.display.set_icon(icono)
+img_jugador = cargar_imagen_robusta("mensajero.png", TAM_JUGADOR)
+img_cliente = cargar_imagen_robusta("audiencia.png", TAM_CLIENTE)
 
 # -------------------- Obstáculos --------------------
 OBSTACULOS = [
@@ -86,14 +110,12 @@ OBSTACULOS = [
 ]
 
 # -------------------- Estados globales --------------------
-font = pygame.font.SysFont(None, 28)
-font_big = pygame.font.SysFont(None, 56)
-msg = "Acércate al cliente y acepta (Q) o rechaza (R) el pedido"
 energia = 100
-energia_barras = "[ | | | | | | | | | | ]"
 dinero_ganado = 0
-reputacion = 70
+reputacion = 70 # INICIAL SEGUN REGLA
 entregas = 0
+racha_sin_penalizacion = 0
+primera_tardanza_fecha = None  # date() cuando se aplicó la reducción de penalización
 
 jugador_rect = img_jugador.get_rect(topleft=(728, 836))
 jugador_x_cambio_positivo = 0.0
@@ -101,24 +123,89 @@ jugador_x_cambio_negativo = 0.0
 jugador_y_cambio_positivo = 0.0
 jugador_y_cambio_negativo = 0.0
 
-# Pedido actual y paquete
 pedido_actual = None
 tiene_paquete = False
-
 ultimo_tick_energia = pygame.time.get_ticks()
+msg = "Bienvenido a Courier Quest"
 
+# -------------------- Reputación: reglas e implementación --------------------
+
+def calcular_pago(base_pago):
+    """Aplica bonus de reputación: +5% si reputación >= 90"""
+    global reputacion
+    if reputacion >= 90:
+        return int(round(base_pago * 1.05))
+    return int(base_pago)
+
+
+def actualizar_reputacion(evento, tiempo_retraso_seg=0):
+    """Aplica la regla de reputación. Devuelve (cambio, game_over_bool).
+
+    evento: 'temprano', 'a_tiempo', 'tarde', 'cancelado', 'perdido'
+    tiempo_retraso_seg: segundos de retraso (solo para 'tarde')
+    """
+    global reputacion, racha_sin_penalizacion, primera_tardanza_fecha
+
+    cambio = 0
+
+    if evento == "temprano":
+        cambio = +5
+        racha_sin_penalizacion += 1
+    elif evento == "a_tiempo":
+        cambio = +3
+        racha_sin_penalizacion += 1
+    elif evento == "tarde":
+        # determinar penalización base
+        if tiempo_retraso_seg <= 30:
+            penal = -2
+        elif tiempo_retraso_seg <= 120:
+            penal = -5
+        else:
+            penal = -10
+
+        # Primera tardanza del día: mitad de penalización si reputación >= 85
+        today = datetime.now().date()
+        if reputacion >= 85 and (primera_tardanza_fecha is None or primera_tardanza_fecha != today):
+            # aplicar mitad (redondear hacia 0)
+            penal = int(math.ceil(penal / 2.0)) if penal < 0 else penal
+            primera_tardanza_fecha = today
+
+        cambio = penal
+        # cortar racha
+        racha_sin_penalizacion = 0
+    elif evento == "cancelado":
+        cambio = -4
+        racha_sin_penalizacion = 0
+    elif evento == "perdido":
+        cambio = -6
+        racha_sin_penalizacion = 0
+
+    # Bono por racha de 3 entregas sin penalización: +2 (se aplica una vez y reinicia la racha)
+    if racha_sin_penalizacion >= 3:
+        cambio += 2
+        racha_sin_penalizacion = 0
+
+    reputacion = max(0, min(100, reputacion + cambio))
+
+    game_over = reputacion < 20
+    return cambio, game_over
 
 # -------------------- Funciones auxiliares --------------------
+
 def dentro_pantalla(rect):
     return pantalla.get_rect().contains(rect)
+
 
 def punto_valido(x, y):
     p = pygame.Rect(0, 0, 32, 32)
     p.center = (x, y)
-    if not dentro_pantalla(p): return False
+    if not dentro_pantalla(p):
+        return False
     for w in OBSTACULOS:
-        if p.colliderect(w): return False
+        if p.colliderect(w):
+            return False
     return True
+
 
 def spawnear_cliente(lejos_de, min_dist=180):
     for _ in range(400):
@@ -128,33 +215,44 @@ def spawnear_cliente(lejos_de, min_dist=180):
             return img_cliente.get_rect(center=(x, y))
     return img_cliente.get_rect(center=(80, 80))
 
+
 def nuevo_pedido():
     pickup = spawnear_cliente(jugador_rect.center)
     dropoff = spawnear_cliente(pickup.center)
+    now = pygame.time.get_ticks()
+    duration = random.randint(60000, 120000)
     return {
         "pickup": pickup,
         "dropoff": dropoff,
         "payout": random.randint(10, 50),
         "peso": random.randint(1, 10),
-        "deadline": pygame.time.get_ticks() + random.randint(60000, 120000)
+        "deadline": now + duration,
+        "created_at": now,
+        "duration": duration
     }
 
+
 def mover_con_colision(rect: pygame.Rect, dx: float, dy: float, paredes):
-    # X
+    # mover en X
     rect.x += int(round(dx))
     for w in paredes:
         if rect.colliderect(w):
-            if dx > 0: rect.right = w.left
-            elif dx < 0: rect.left = w.right
-    # Y
+            if dx > 0:
+                rect.right = w.left
+            elif dx < 0:
+                rect.left = w.right
+    # mover en Y
     rect.y += int(round(dy))
     for w in paredes:
         if rect.colliderect(w):
-            if dy > 0: rect.bottom = w.top
-            elif dy < 0: rect.top = w.bottom
+            if dy > 0:
+                rect.bottom = w.top
+            elif dy < 0:
+                rect.top = w.bottom
     rect.clamp_ip(pantalla.get_rect())
 
 # -------------------- Guardar/Cargar partida --------------------
+
 def snapshot_partida():
     return {
         "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
@@ -165,7 +263,9 @@ def snapshot_partida():
                         pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
             "payout": pedido_actual["payout"],
             "peso": pedido_actual["peso"],
-            "deadline": pedido_actual["deadline"]
+            "deadline": pedido_actual["deadline"],
+            "created_at": pedido_actual.get("created_at"),
+            "duration": pedido_actual.get("duration")
         } if pedido_actual else None,
         "tiene_paquete": tiene_paquete,
         "entregas": entregas,
@@ -173,42 +273,56 @@ def snapshot_partida():
         "dinero": dinero_ganado,
         "reputacion": reputacion,
         "msg": msg,
-        "clima_actual": clima_actual if 'clima_actual' in globals() else "clear",
+        "racha_sin_penalizacion": racha_sin_penalizacion,
+        "primera_tardanza_fecha": primera_tardanza_fecha.isoformat() if primera_tardanza_fecha else None
     }
 
+
 def aplicar_partida(data):
-    global jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg, clima_actual
-    jx, jy = data["jugador"]["x"], data["jugador"]["y"]
-    jugador_rect.topleft = (int(jx), int(jy))
+    global jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg
+    global racha_sin_penalizacion, primera_tardanza_fecha
+
+    if not data:
+        return
+
+    j = data.get("jugador")
+    if j:
+        jugador_rect.topleft = (int(j.get("x", jugador_rect.x)), int(j.get("y", jugador_rect.y)))
 
     p = data.get("pedido")
     if p:
-        pedido_actual = {
-            "pickup": pygame.Rect(*p["pickup"]),
-            "dropoff": pygame.Rect(*p["dropoff"]),
-            "payout": p["payout"],
-            "peso": p["peso"],
-            "deadline": p["deadline"]
-        }
+        try:
+            pedido_actual = {
+                "pickup": pygame.Rect(*p["pickup"]),
+                "dropoff": pygame.Rect(*p["dropoff"]),
+                "payout": p["payout"],
+                "peso": p["peso"],
+                "deadline": p["deadline"],
+                "created_at": p.get("created_at", pygame.time.get_ticks()),
+                "duration": p.get("duration", max(60000, p.get("deadline", pygame.time.get_ticks()) - p.get("created_at", pygame.time.get_ticks())))
+            }
+        except Exception:
+            pedido_actual = nuevo_pedido()
     else:
         pedido_actual = nuevo_pedido()
-
-    # Validar pickup/dropoff no esté en obstáculo o fuera pantalla
-    if pedido_actual and (any(pedido_actual["pickup"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["pickup"])):
-        pedido_actual["pickup"] = spawnear_cliente(jugador_rect.center)
-    if pedido_actual and (any(pedido_actual["dropoff"].colliderect(w) for w in OBSTACULOS) or not dentro_pantalla(pedido_actual["dropoff"])):
-        pedido_actual["dropoff"] = spawnear_cliente(pedido_actual["pickup"].center)
 
     tiene_paquete = data.get("tiene_paquete", False)
     entregas = int(data.get("entregas", 0))
     energia = int(data.get("energia", 100))
     dinero_ganado = int(data.get("dinero", 0))
     reputacion = int(data.get("reputacion", 70))
-    msg = data.get("msg", "Partida cargada")
-    # clima_actual se carga si existe, si no, queda como está (inicia en clear)
-    saved_clima = data.get("clima_actual")
-    if saved_clima:
-        clima_actual = saved_clima
+    msg = data.get("msg", msg)
+    racha_sin_penalizacion = int(data.get("racha_sin_penalizacion", 0))
+
+    ptf = data.get("primera_tardanza_fecha")
+    if ptf:
+        try:
+            primera_tardanza_fecha = date.fromisoformat(ptf)
+        except Exception:
+            primera_tardanza_fecha = None
+    else:
+        primera_tardanza_fecha = None
+
 
 def guardar_partida():
     try:
@@ -217,6 +331,7 @@ def guardar_partida():
         return True, "Partida guardada"
     except Exception as e:
         return False, f"Error al guardar: {e}"
+
 
 def cargar_partida():
     try:
@@ -230,19 +345,22 @@ def cargar_partida():
         return False, f"Error al cargar: {e}"
 
 # -------------------- Records --------------------
+
 def cargar_records():
     try:
         with open(RECORDS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except Exception:
         return []
+
 
 def guardar_records(lista):
     try:
         with open(RECORDS_FILE, "w", encoding="utf-8") as f:
             json.dump(lista, f, ensure_ascii=False, indent=2)
-    except:
+    except Exception:
         pass
+
 
 def registrar_record():
     recs = cargar_records()
@@ -251,7 +369,6 @@ def registrar_record():
         "dinero": int(dinero_ganado),
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
-    # Top 10 por entregas desc, dinero desc
     recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
     recs = recs[:10]
     guardar_records(recs)
@@ -372,16 +489,16 @@ def actualizar_clima():
         iniciar_transicion(siguiente, ahora)
 
 # -------------------- Dibujo --------------------
+
 def dibujar_fondo_y_obs():
-    # Ajustar color base según clima
     base_color = (51, 124, 196)
     if clima_actual in ("rain", "storm", "rain_light"):
         base_color = (40, 80, 120)
     elif clima_actual in ("clouds", "fog"):
         base_color = (80, 110, 140)
-    elif clima_actual in ("heat"):
+    elif clima_actual in ("heat",):
         base_color = (140, 120, 80)
-    elif clima_actual in ("cold"):
+    elif clima_actual in ("cold",):
         base_color = (90, 110, 140)
     pantalla.fill(base_color)
 
@@ -389,41 +506,43 @@ def dibujar_fondo_y_obs():
         pygame.draw.rect(pantalla, (170, 120, 80), r, border_radius=6)
         pygame.draw.rect(pantalla, (140, 90, 60), r, 3, border_radius=6)
 
-def dibujar_barra(x, y, valor, max_valor, ancho, alto, color_fondo, color_relleno):
-    # Clamp valor
+
+def dibujar_barra(x, y, valor, max_valor, ancho, alto):
     v = max(0, min(valor, max_valor))
-    pygame.draw.rect(pantalla, color_fondo, (x, y, ancho, alto))
-    relleno = int((v / max_valor) * ancho)
+    pygame.draw.rect(pantalla, (60, 60, 60), (x, y, ancho, alto))
+    relleno = int((v / max_valor) * ancho) if max_valor > 0 else 0
     if relleno > 0:
-        pygame.draw.rect(pantalla, color_relleno, (x, y, relleno, alto))
+        pygame.draw.rect(pantalla, (0, 200, 0), (x, y, relleno, alto))
+
 
 def dibujar_menu(opciones, seleccionado, titulo="Courier Quest", subtitulo="Usa ↑/↓ y ENTER"):
     pantalla.fill((20, 24, 28))
     t = font_big.render(titulo, True, (255, 255, 255))
-    pantalla.blit(t, (ANCHO//2 - t.get_width()//2, 140))
+    pantalla.blit(t, (ANCHO // 2 - t.get_width() // 2, 140))
     s = font.render(subtitulo, True, (200, 200, 200))
-    pantalla.blit(s, (ANCHO//2 - s.get_width()//2, 200))
+    pantalla.blit(s, (ANCHO // 2 - s.get_width() // 2, 200))
     y0 = 280
     for i, op in enumerate(opciones):
         color = (255, 255, 0) if i == seleccionado else (220, 220, 220)
         surf = font.render(op, True, color)
-        pantalla.blit(surf, (ANCHO//2 - surf.get_width()//2, y0 + i*44))
+        pantalla.blit(surf, (ANCHO // 2 - surf.get_width() // 2, y0 + i * 44))
+
 
 def dibujar_records():
     pantalla.fill((20, 24, 28))
     t = font_big.render("Records", True, (255, 255, 255))
-    pantalla.blit(t, (ANCHO//2 - t.get_width()//2, 120))
+    pantalla.blit(t, (ANCHO // 2 - t.get_width() // 2, 120))
     recs = cargar_records()
     if not recs:
-        pantalla.blit(font.render("No hay records aún.", True, (220, 220, 220)),
-                      (ANCHO//2 - 120, 220))
+        pantalla.blit(font.render("No hay records aún.", True, (220, 220, 220)), (ANCHO // 2 - 120, 220))
     else:
         y = 220
         for idx, r in enumerate(recs, 1):
             linea = f"{idx:>2}. Entregas: {r.get('entregas',0):>3}  |  Dinero: {r.get('dinero',0):>4}  |  {r.get('fecha','')}"
-            pantalla.blit(font.render(linea, True, (230, 230, 230)), (ANCHO//2 - 280, y))
+            pantalla.blit(font.render(linea, True, (230, 230, 230)), (ANCHO // 2 - 280, y))
             y += 34
     pantalla.blit(font.render("ESC: volver", True, (200, 200, 200)), (20, ALTO - 40))
+
 
 def dibujar_hud():
     y = 8
@@ -434,16 +553,18 @@ def dibujar_hud():
         f"Dinero ganado: {dinero_ganado} $",
         f"Reputación: {reputacion}",
         linea_clima,
-        msg
+        msg,
     )
     for linea in lineas:
         pantalla.blit(font.render(linea, True, (255, 255, 255)), (10, y))
         y += 26
 
-    # barra de energía (resistencia)
-    # dibujar etiqueta
     pantalla.blit(font.render("Energía:", True, (255, 255, 255)), (10, y))
-    dibujar_barra(100, y, energia, 100, 200, 18, (60, 60, 60), (0, 200, 0))
+    dibujar_barra(100, y, energia, 100, 200, 18)
+
+    # mostrar multiplicador si aplica
+    if reputacion >= 90:
+        pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
 
 # -------------------- Máquina de estados --------------------
 INICIO, MENU, GAME, RECORDS = 0, 1, 2, 3
@@ -451,8 +572,10 @@ estado = MENU
 menu_idx = 0
 menu_msg = ""
 
+
 def reset_partida():
     global jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg
+    global racha_sin_penalizacion, primera_tardanza_fecha
     jugador_rect.topleft = (728, 836)
     pedido_actual = nuevo_pedido()
     tiene_paquete = False
@@ -461,6 +584,8 @@ def reset_partida():
     dinero_ganado = 0
     reputacion = 70
     msg = "Acércate al cliente y acepta (Q) o rechaza (R) el pedido"
+    racha_sin_penalizacion = 0
+    primera_tardanza_fecha = None
 
 clock = pygame.time.Clock()
 corriendo = True
@@ -543,7 +668,7 @@ while corriendo:
         dibujar_menu(opciones, menu_idx)
         if menu_msg:
             info = font.render(menu_msg, True, (255, 220, 120))
-            pantalla.blit(info, (ANCHO//2 - info.get_width()//2, 280 + len(opciones)*44 + 20))
+            pantalla.blit(info, (ANCHO // 2 - info.get_width() // 2, 280 + len(opciones) * 44 + 20))
         pygame.display.flip()
         continue
 
@@ -558,7 +683,6 @@ while corriendo:
         continue
 
     # -------------------- Actualizaciones por frame --------------------
-    # Actualizar clima (usa Markov + transiciones suaves)
     actualizar_clima()
 
     # Disminuir energía una vez por segundo si se está moviendo
@@ -583,7 +707,7 @@ while corriendo:
             energia = max(0, energia - int(round(costo)))
         ultimo_tick_energia = ahora
 
-    # Manejo eventos
+    # -------------------- Manejo eventos --------------------
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             registrar_record()
@@ -593,55 +717,81 @@ while corriendo:
                 registrar_record()
                 estado = MENU
                 menu_msg = "Sesión guardada en records"
-            elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
+            elif evento.key in (pygame.K_DOWN, pygame.K_s):
                 jugador_y_cambio_positivo = 0.1
-            elif evento.key == pygame.K_UP or evento.key == pygame.K_w:
+            elif evento.key in (pygame.K_UP, pygame.K_w):
                 jugador_y_cambio_negativo = -0.1
-            elif evento.key == pygame.K_LEFT or evento.key == pygame.K_a:
+            elif evento.key in (pygame.K_LEFT, pygame.K_a):
                 jugador_x_cambio_negativo = -0.1
-            elif evento.key == pygame.K_RIGHT or evento.key == pygame.K_d:
+            elif evento.key in (pygame.K_RIGHT, pygame.K_d):
                 jugador_x_cambio_positivo = 0.1
             elif evento.key == pygame.K_q:  # aceptar pedido
                 if pedido_actual and jugador_rect.colliderect(pedido_actual["pickup"]) and not tiene_paquete:
                     tiene_paquete = True
                     msg = f"Pedido aceptado ({pedido_actual['peso']}kg)"
-            elif evento.key == pygame.K_r:  # rechazar pedido
+            elif evento.key == pygame.K_r:  # rechazar o cancelar pedido
+                # Rechazar sin paquete (descartar oferta): no penaliza según reglas nuevas
                 if pedido_actual and jugador_rect.colliderect(pedido_actual["pickup"]) and not tiene_paquete:
                     pedido_actual = nuevo_pedido()
-                    reputacion = max(0, reputacion - 5)
-                    if reputacion <= 30:
-                        msg = "¡Has perdido! Tu reputación llegó a 30."
+                    msg = "Pedido rechazado"
+                # Si ya tiene paquete, cancelar pedido aceptado -> penalización -4
+                elif tiene_paquete and pedido_actual:
+                    cambio, game_over = actualizar_reputacion('cancelado')
+                    tiene_paquete = False
+                    pedido_actual = nuevo_pedido()
+                    msg = f"Pedido cancelado. Reputación {reputacion} ({cambio})"
+                    if game_over:
+                        msg = "¡Has perdido! Tu reputación llegó a menos de 20."
                         registrar_record()
                         pygame.display.flip()
                         pygame.time.wait(2000)
-                        corriendo = False
+                        estado_juego = "menu"
                         break
-                    else:
-                        msg = "Pedido rechazado"
             elif evento.key == pygame.K_e:  # entregar pedido
                 if tiene_paquete and pedido_actual and jugador_rect.colliderect(pedido_actual["dropoff"]):
+                    now = pygame.time.get_ticks()
+                    duration = pedido_actual.get("duration", max(60000, pedido_actual["deadline"] - pedido_actual.get("created_at", now)))
+                    tiempo_restante = pedido_actual["deadline"] - now
+
+                    if tiempo_restante >= 0:
+                        # entrega temprana o a tiempo
+                        if tiempo_restante >= 0.2 * duration:
+                            cambio, game_over = actualizar_reputacion('temprano')
+                            msg = "Entrega temprana"
+                        else:
+                            cambio, game_over = actualizar_reputacion('a_tiempo')
+                            msg = "Entrega a tiempo"
+                    else:
+                        retraso_seg = (now - pedido_actual["deadline"]) / 1000.0
+                        cambio, game_over = actualizar_reputacion('tarde', retraso_seg)
+                        msg = f"Entrega tardía ({int(retraso_seg)}s)"
+
+                    # Aplicar pago y contadores
+                    dinero_ganado += calcular_pago(pedido_actual.get("payout", 0))
                     entregas += 1
-                    dinero_ganado += pedido_actual["payout"]
-                    reputacion = min(100, reputacion + 5)
-                    msg = "Entrega realizada"
                     tiene_paquete = False
                     pedido_actual = nuevo_pedido()
-                else:
-                    msg = "No tienes pedido o no estás en destino"
-            elif evento.key == pygame.K_g:  # guardar partida
-                ok, m = guardar_partida()
-                msg = m
-        elif evento.type == pygame.KEYUP:
-            if evento.key == pygame.K_LEFT or evento.key == pygame.K_a:
-                jugador_x_cambio_negativo = 0.0
-            elif evento.key == pygame.K_RIGHT or evento.key == pygame.K_d:
-                jugador_x_cambio_positivo = 0.0
-            elif evento.key == pygame.K_UP or evento.key == pygame.K_w:
-                jugador_y_cambio_negativo = 0.0
-            elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
-                jugador_y_cambio_positivo = 0.0
 
-    # Movimiento fluido (usa las variables de cambio que setean eventos)
+                    if game_over:
+                        msg = "¡Has perdido! Tu reputación llegó a menos de 20."
+                        registrar_record()
+                        pygame.display.flip()
+                        pygame.time.wait(2000)
+                        estado_juego = "menu"
+                        break
+
+        elif evento.type == pygame.KEYUP:
+            # detener movimiento al soltar tecla correspondiente
+            if evento.key in (pygame.K_DOWN, pygame.K_s):
+                jugador_y_cambio_positivo = 0.0
+            elif evento.key in (pygame.K_UP, pygame.K_w):
+                jugador_y_cambio_negativo = 0.0
+            elif evento.key in (pygame.K_LEFT, pygame.K_a):
+                jugador_x_cambio_negativo = 0.0
+            elif evento.key in (pygame.K_RIGHT, pygame.K_d):
+                jugador_x_cambio_positivo = 0.0
+
+    # -------------------- Movimiento --------------------
     vx_raw = jugador_x_cambio_positivo + jugador_x_cambio_negativo
     vy_raw = jugador_y_cambio_positivo + jugador_y_cambio_negativo
     dx = dy = 0.0
@@ -651,6 +801,22 @@ while corriendo:
             ux, uy = vx_raw / l, vy_raw / l
             dx, dy = ux * VEL * dt, uy * VEL * dt
     mover_con_colision(jugador_rect, dx, dy, OBSTACULOS)
+
+    # Comprobar expiración del paquete aceptado
+    if pedido_actual and tiene_paquete and ahora > pedido_actual["deadline"]:
+        cambio, game_over = actualizar_reputacion('perdido')
+        racha_sin_penalizacion = 0
+        if game_over:
+            msg = "¡Has perdido! Tu reputación llegó a menos de 20."
+            registrar_record()
+            pygame.display.flip()
+            pygame.time.wait(2000)
+            estado_juego = "menu"
+            break
+        else:
+            msg = "El paquete expiró"
+        tiene_paquete = False
+        pedido_actual = nuevo_pedido()
 
     # Dibujar escena
     dibujar_fondo_y_obs()
