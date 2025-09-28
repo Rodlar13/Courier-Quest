@@ -16,8 +16,8 @@ except Exception:
     sys.exit(1)
 
 # -------------------- Configuración API (opcional) --------------------
-BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
-
+#BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
+"""
 
 def obtener_datos_API(endpoint, archivo):
     try:
@@ -49,17 +49,19 @@ def cargarDatosAPI():
         return mapa, jobs, clima
     except Exception:
         return None, None, None
-
+"""
 # Intentar cargar datos (no obligatorio)
 cargarDatosAPI()
 
 # -------------------- Configuración general --------------------
+"""
 ANCHO, ALTO = 1500, 900
 FPS = 60
 CELDA = 48
 v0 = 3 * CELDA  # velocidad base (px/seg)
 SAVE_FILE = "partida.json"
 RECORDS_FILE = "records.json"
+"""
 
 pygame.init()
 pantalla = pygame.display.set_mode((ANCHO, ALTO))
@@ -129,9 +131,9 @@ ultimo_tick_energia = pygame.time.get_ticks()
 msg = "Bienvenido a Courier Quest"
 
 # -------------------- Reputación: reglas e implementación --------------------
-
+"""
 def calcular_pago(base_pago):
-    """Aplica bonus de reputación: +5% si reputación >= 90"""
+    Aplica bonus de reputación: +5% si reputación >= 90
     global reputacion
     if reputacion >= 90:
         return int(round(base_pago * 1.05))
@@ -139,11 +141,11 @@ def calcular_pago(base_pago):
 
 
 def actualizar_reputacion(evento, tiempo_retraso_seg=0):
-    """Aplica la regla de reputación. Devuelve (cambio, game_over_bool).
+    Aplica la regla de reputación. Devuelve (cambio, game_over_bool).
 
     evento: 'temprano', 'a_tiempo', 'tarde', 'cancelado', 'perdido'
     tiempo_retraso_seg: segundos de retraso (solo para 'tarde')
-    """
+    
     global reputacion, racha_sin_penalizacion, primera_tardanza_fecha
 
     cambio = 0
@@ -189,7 +191,7 @@ def actualizar_reputacion(evento, tiempo_retraso_seg=0):
 
     game_over = reputacion < 20
     return cambio, game_over
-
+"""
 # -------------------- Funciones auxiliares --------------------
 
 def dentro_pantalla(rect):
@@ -323,7 +325,7 @@ def aplicar_partida(data):
     else:
         primera_tardanza_fecha = None
 
-
+"""
 def guardar_partida():
     try:
         with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -331,7 +333,7 @@ def guardar_partida():
         return True, "Partida guardada"
     except Exception as e:
         return False, f"Error al guardar: {e}"
-
+"""
 
 def cargar_partida():
     try:
@@ -345,7 +347,7 @@ def cargar_partida():
         return False, f"Error al cargar: {e}"
 
 # -------------------- Records --------------------
-
+"""
 def cargar_records():
     try:
         with open(RECORDS_FILE, "r", encoding="utf-8") as f:
@@ -372,7 +374,7 @@ def registrar_record():
     recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
     recs = recs[:10]
     guardar_records(recs)
-
+"""
 # -------------------- Sistema de Clima --------------------
 # Mapeo reducido: display en español
 CLIMAS_ES = {
