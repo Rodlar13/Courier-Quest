@@ -1,0 +1,15 @@
+{
+  "jugador": {
+    "x": 1211,
+    "y": 547
+  },
+  "cliente": {
+    "cx": 293,
+    "cy": 610
+  },
+  "entregas": 5,
+  "energia": 100,
+  "dinero": 0,
+  "reputacion": 0,
+  "msg": "Entrega realizada"
+}
