@@ -1,6 +1,10 @@
 import math
 from datetime import datetime
 
+reputacion = 70
+racha_sin_penalizacion = 0
+primera_tardanza_fecha = None
+
 def calcular_pago(base_pago):
     """Aplica bonus de reputación: +5% si reputación >= 90"""
     global reputacion
