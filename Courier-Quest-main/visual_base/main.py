@@ -49,14 +49,20 @@ def main():
     ultimo_tick_energia = pygame.time.get_ticks()
     msg = "Bienvenido a Courier Quest"
     
+    # Guardado automático
+    ultimo_guardado_auto = pygame.time.get_ticks()
+    intervalo_guardado_auto = 30000
+    
+
     estado = MENU
     menu_idx = 0
     menu_msg = ""
     
-    
+   
+    # Sistema de clima
     weather_system = WeatherSystem()
     
-    
+    # Cargar datos desde API
     datos.cargarDatosAPI(BASE_URL)
     
     def spawnear_cliente(lejos_de, img_cliente, min_dist=180):
@@ -67,7 +73,7 @@ def main():
             p = pygame.Rect(0, 0, 32, 32)
             p.center = (x, y)
             
-            
+            #verificar que esté dentro de la pantalla
             if not pantalla.get_rect().contains(p):
                 continue
                 
@@ -95,6 +101,7 @@ def main():
         msg = "Acércate al cliente y acepta (Q) o rechaza (R) el pedido"
         racha_sin_penalizacion = 0
         primera_tardanza_fecha = None
+        ultimo_guardado_auto = pygame.time.get_ticks()
     
     def nuevo_pedido():
         pickup = spawnear_cliente(jugador_rect.center, img_cliente)
@@ -217,10 +224,41 @@ def main():
         if reputacion >= 90:
             pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
     
-    
+    #guardado automatico
+    def guardar_partida_automatica():
+        """Salvar el progreso automatico"""
+        snapshot = {
+            "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
+            "tiene_paquete": tiene_paquete,
+            "entregas": entregas,
+            "energia": energia,
+            "dinero": dinero_ganado,
+            "reputacion": reputacion,
+            "msg": msg,
+            "racha_sin_penalizacion": racha_sin_penalizacion,
+            "primera_tardanza_fecha": primera_tardanza_fecha.isoformat() if primera_tardanza_fecha else None
+        }
+        
+        if pedido_actual:
+            snapshot["pedido"] = {
+                "pickup": [pedido_actual["pickup"].x, pedido_actual["pickup"].y,
+                          pedido_actual["pickup"].width, pedido_actual["pickup"].height],
+                "dropoff": [pedido_actual["dropoff"].x, pedido_actual["dropoff"].y,
+                           pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
+                "payout": pedido_actual["payout"],
+                "peso": pedido_actual["peso"],
+                "deadline": pedido_actual["deadline"],
+                "created_at": pedido_actual.get("created_at", pygame.time.get_ticks()),
+                "duration": pedido_actual.get("duration", 60000)
+            }
+        
+        return datos.guardar_partida(snapshot, SAVE_FILE)
+
+
+    #inicializar pedido
     pedido_actual = nuevo_pedido()
     
-    
+    # Bucle principal
     clock = pygame.time.Clock()
     corriendo = True
     
@@ -250,6 +288,18 @@ def main():
         dt = clock.tick(FPS) / 1000.0
         ahora = pygame.time.get_ticks()
 
+        # AUTO  guardado cada 30 segundos de juego
+        if estado == GAME and ahora - ultimo_guardado_auto > intervalo_guardado_auto:
+            ok, m = guardar_partida_automatica()
+            if ok:
+                # Muestre mensaje de guardado 
+                msg_original = msg
+                msg = "Partida guardada automáticamente"
+                ultimo_guardado_auto = ahora
+            else:
+                print(f"Error en guardado automático: {m}")
+
+
         #Actualizar clima
         weather_system.actualizar(ahora)
 
@@ -273,7 +323,7 @@ def main():
                         elif seleccion == "Cargar partida":
                             data = datos.cargar_partida(SAVE_FILE)
                             if data:
-                                
+                                print(f"Loaded data: {data}") # cargar partida 
                                 j = data.get("jugador")
                                 if j:
                                     jugador_rect.topleft = (int(j.get("x", 728)), int(j.get("y", 836)))
@@ -356,6 +406,9 @@ def main():
                     estado = MENU
                     menu_msg = "Sesión guardada en records"
                 elif evento.key == pygame.K_g:  #Guardar partida 
+                    ok, m = guardar_partida_automatica()
+                    msg = m
+                    ultimo_guardado_auto = ahora
                     snapshot = {
                         "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
                         "pedido": {

@@ -16,6 +16,7 @@ RECORDS_FILE = "records.json"
 BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
 
 
+
 TAM_JUGADOR = (48, 48)
 TAM_CLIENTE = (42, 42)
 TAM_ICONO = (32, 32)
