@@ -1,7 +1,7 @@
-import random
-import pygame
 
-# Mapeo reducido: display en español
+import random
+
+
 CLIMAS_ES = {
     "clear": "Despejado",
     "clouds": "Nublado",
@@ -14,7 +14,7 @@ CLIMAS_ES = {
     "cold": "Frío"
 }
 
-# Matriz de transición Markov (completa)
+# Markov 
 TRANSICIONES = {
     "clear": [
         ("clear", 0.40), ("clouds", 0.25), ("rain_light", 0.10),
@@ -54,63 +54,100 @@ TRANSICIONES = {
     ]
 }
 
-# Estado inicial del clima: siempre start en clear
-clima_actual = "clear"
-intensidad_actual = random.uniform(0.3, 0.7)
-intensidad_inicio = intensidad_actual
-clima_objetivo = clima_actual
-intensidad_objetivo = intensidad_actual
-transicion = False
-transicion_inicio = 0  # ms (usamos time en segundos en varias partes, aquí usaremos time.get_ticks ms)
-transicion_duracion = 0  # ms
-ultimo_cambio_clima = pygame.time.get_ticks()  # ms
-duracion_actual = random.uniform(45000, 60000)  # ms
+class WeatherSystem:
+    def __init__(self):
+        self.clima_actual = "clear"
+        self.intensidad_actual = random.uniform(0.3, 0.7)
+        self.intensidad_inicio = self.intensidad_actual
+        self.clima_objetivo = self.clima_actual
+        self.intensidad_objetivo = self.intensidad_actual
+        self.transicion = False
+        self.transicion_inicio = 0
+        self.transicion_duracion = 0
+        self.ultimo_cambio_clima = 0
+        self.duracion_actual = random.uniform(45000, 60000)
 
-def elegir_siguiente_clima(actual):
-    trans = TRANSICIONES.get(actual, TRANSICIONES["clear"])
-    r = random.random()
-    acumulado = 0.0
-    for estado, prob in trans:
-        acumulado += prob
-        if r <= acumulado:
-            return estado
-    return actual
+    def elegir_siguiente_clima(self, actual):
+        trans = TRANSICIONES.get(actual, TRANSICIONES["clear"])
+        r = random.random()
+        acumulado = 0.0
+        for estado, prob in trans:
+            acumulado += prob
+            if r <= acumulado:
+                return estado
+        return actual
 
-def iniciar_transicion(nuevo_clima, ahora_ms):
-    """Prepara variables para una transición suave"""
-    global clima_objetivo, intensidad_objetivo, transicion, transicion_inicio, transicion_duracion, intensidad_inicio
-    clima_objetivo = nuevo_clima
-    intensidad_objetivo = random.uniform(0.3, 1.0)
-    intensidad_inicio = intensidad_actual
-    transicion = True
-    transicion_inicio = ahora_ms
-    transicion_duracion = random.uniform(3000, 5000)  # ms
+    def iniciar_transicion(self, nuevo_clima, ahora_ms):
+        """Prepara variables para una transición suave"""
+        self.clima_objetivo = nuevo_clima
+        self.intensidad_objetivo = random.uniform(0.3, 1.0)
+        self.intensidad_inicio = self.intensidad_actual
+        self.transicion = True
+        self.transicion_inicio = ahora_ms
+        self.transicion_duracion = random.uniform(3000, 5000)
 
-def actualizar_clima():
-    """Se llama cada frame. Controla ráfagas y transiciones (usa ms de pygame)."""
-    global clima_actual, intensidad_actual, clima_objetivo, intensidad_objetivo
-    global transicion, transicion_inicio, transicion_duracion, intensidad_inicio
-    global ultimo_cambio_clima, duracion_actual
+    def actualizar(self, ahora):
+        """Se llama cada frame. Controla ráfagas y transiciones."""
+        if self.transicion:
+            dur = self.transicion_duracion if self.transicion_duracion > 0 else 1
+            t = (ahora - self.transicion_inicio) / dur
+            if t >= 1.0:
+                # fin transición
+                self.clima_actual = self.clima_objetivo
+                self.intensidad_actual = self.intensidad_objetivo
+                self.transicion = False
+                self.ultimo_cambio_clima = ahora
+                self.duracion_actual = random.uniform(45000, 60000)
+            else:
+                # interpolación lineal
+                self.intensidad_actual = (1 - t) * self.intensidad_inicio + t * self.intensidad_objetivo
+            return
 
-    ahora = pygame.time.get_ticks()  # ms
+        # si terminó la ráfaga -> iniciar transición
+        if ahora - self.ultimo_cambio_clima > self.duracion_actual:
+            siguiente = self.elegir_siguiente_clima(self.clima_actual)
+            self.iniciar_transicion(siguiente, ahora)
 
-    if transicion:
-        # proteger división por cero
-        dur = transicion_duracion if transicion_duracion > 0 else 1
-        t = (ahora - transicion_inicio) / dur
-        if t >= 1.0:
-            # fin transición
-            clima_actual = clima_objetivo
-            intensidad_actual = intensidad_objetivo
-            transicion = False
-            ultimo_cambio_clima = ahora
-            duracion_actual = random.uniform(45000, 60000)
-        else:
-            # interpolación lineal entre intensidad_inicio y intensidad_objetivo
-            intensidad_actual = (1 - t) * intensidad_inicio + t * intensidad_objetivo
-        return
+    def get_weather_multiplier(self):
+        """Returns speed multiplier based on current weather"""
+        multipliers = {
+            "clear": 1.0,
+            "clouds": 0.97,
+            "rain_light": 0.95,
+            "rain": 0.9,
+            "storm": 0.85,
+            "fog": 0.95,
+            "wind": 0.9,
+            "heat": 0.92,
+            "cold": 0.95
+        }
+        return multipliers.get(self.clima_actual, 1.0)
 
-    # si terminó la ráfaga -> iniciar transición
-    if ahora - ultimo_cambio_clima > duracion_actual:
-        siguiente = elegir_siguiente_clima(clima_actual)
-        iniciar_transicion(siguiente, ahora)
+    def get_energy_cost(self):
+        """Returns energy cost based on current weather"""
+        costs = {
+            "clear": 1,
+            "clouds": 1,
+            "rain_light": 2,
+            "rain": 3,
+            "storm": 4,
+            "fog": 1.5,
+            "wind": 2,
+            "heat": 1.2,
+            "cold": 1.2
+        }
+        return costs.get(self.clima_actual, 1)
+
+    def get_base_color(self):
+        """Returns background color based on weather"""
+        colors = {
+            "clear": (51, 124, 196),
+            "rain": (40, 80, 120),
+            "rain_light": (40, 80, 120),
+            "storm": (40, 80, 120),
+            "clouds": (80, 110, 140),
+            "fog": (80, 110, 140),
+            "heat": (140, 120, 80),
+            "cold": (90, 110, 140)
+        }
+        return colors.get(self.clima_actual, (51, 124, 196))
