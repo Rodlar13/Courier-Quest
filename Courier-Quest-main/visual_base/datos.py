@@ -168,7 +168,7 @@ def guardar_records(lista, RECORDS_FILE):
     except Exception:
         pass
 
-def registrar_record(entregas, dinero_ganado, RECORDS_FILE):
+def registrar_record(entregas, dinero_ganado, reputacion,RECORDS_FILE):
     """Registra un nuevo record"""
     from datetime import datetime  # Import local para evitar dependencias
     
@@ -176,7 +176,9 @@ def registrar_record(entregas, dinero_ganado, RECORDS_FILE):
     recs.append({
         "entregas": int(entregas),
         "dinero": int(dinero_ganado),
+        "reputacion": int(reputacion),
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
     })
     recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
     recs = recs[:10]

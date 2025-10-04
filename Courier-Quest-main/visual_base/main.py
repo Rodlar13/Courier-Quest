@@ -102,7 +102,9 @@ def main():
         racha_sin_penalizacion = 0
         primera_tardanza_fecha = None
         ultimo_guardado_auto = pygame.time.get_ticks()
-    
+
+        weather_system.__init__()
+
     def nuevo_pedido():
         pickup = spawnear_cliente(jugador_rect.center, img_cliente)
         dropoff = spawnear_cliente(pickup.center, img_cliente)
@@ -188,17 +190,26 @@ def main():
             surf = font.render(op, True, color)
             pantalla.blit(surf, (ANCHO // 2 - surf.get_width() // 2, y0 + i * 44))
 
-    def dibujar_records():
+    def dibujar_records(): 
         pantalla.fill((20, 24, 28))
         t = font_big.render("Records", True, (255, 255, 255))
+        subtitle = font.render("Score = Dinero × Reputación", True, (200, 200, 200))
         pantalla.blit(t, (ANCHO // 2 - t.get_width() // 2, 120))
         recs = datos.cargar_records(RECORDS_FILE)
         if not recs:
             pantalla.blit(font.render("No hay records aún.", True, (220, 220, 220)), (ANCHO // 2 - 120, 220))
         else:
             y = 220
+            header = "Pos.  Entregas    Dinero   Reputación   Score       Fecha"
+            pantalla.blit(font.render(header, True, (255, 255, 0)), (ANCHO // 2 - 350, y))
+            y += 40
             for idx, r in enumerate(recs, 1):
-                linea = f"{idx:>2}. Entregas: {r.get('entregas',0):>3}  |  Dinero: {r.get('dinero',0):>4}  |  {r.get('fecha','')}"
+                entregas = r.get('entregas', 0)
+                dinero = r.get('dinero', 0)
+                reputacion = r.get('reputacion', 0)
+                fecha = r.get('fecha', '')
+                score = dinero * reputacion
+                linea = f"{idx:>2}. Entregas: {entregas:>3}  |  Dinero: {dinero:>4} |  Reputación: {reputacion:>4}  |  Score: {score:>4} |  Fecha: {fecha}"
                 pantalla.blit(font.render(linea, True, (230, 230, 230)), (ANCHO // 2 - 280, y))
                 y += 34
         pantalla.blit(font.render("ESC: volver", True, (200, 200, 200)), (20, ALTO - 40))
@@ -398,11 +409,11 @@ def main():
         # Manejo de eventos
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                 corriendo = False
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_ESCAPE:
-                    datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                    datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                     estado = MENU
                     menu_msg = "Sesión guardada en records"
                 elif evento.key == pygame.K_g:  #Guardar partida 
@@ -461,7 +472,7 @@ def main():
                         msg = f"Pedido cancelado. Reputación {reputacion} ({cambio})"
                         if game_over:
                             msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                            datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                            datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                             pygame.display.flip()
                             pygame.time.wait(2000)
                             estado = MENU
@@ -501,7 +512,7 @@ def main():
 
                         if game_over:
                             msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                            datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                            datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                             pygame.display.flip()
                             pygame.time.wait(2000)
                             estado = MENU
@@ -533,7 +544,7 @@ def main():
             
             if game_over:
                 msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                 pygame.display.flip()
                 pygame.time.wait(2000)
                 estado = MENU
