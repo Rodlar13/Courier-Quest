@@ -1,7 +1,5 @@
-
 import pygame
 import sys
-import random
 import math
 from configurar import *
 import datos
@@ -9,28 +7,23 @@ from reputacion import *
 from clima import *
 from base import *
 from graficos import *
-from datos import *
 
 def main():
-    
     pygame.init()
     pantalla = pygame.display.set_mode((ANCHO, ALTO))
     pygame.display.set_caption("Courier Quest")
     
-    
+    # Fuentes
     font = pygame.font.SysFont(None, 22)
     font_big = pygame.font.SysFont(None, 44)
     
-    
+    # Cargar imágenes
     icono = cargar_imagen_robusta("mensajero.png", TAM_ICONO, exit_on_fail=False)
     pygame.display.set_icon(icono)
     img_jugador = cargar_imagen_robusta("mensajero.png", TAM_JUGADOR)
     img_cliente = cargar_imagen_robusta("audiencia.png", TAM_CLIENTE)
     
-    
-    obstaculos = [pygame.Rect(*obs) for obs in OBSTACULOS]
-    
-    
+    # Estado del juego (multi-order version)
     energia = 100
     dinero_ganado = 0
     reputacion = 70
@@ -44,240 +37,123 @@ def main():
     jugador_y_cambio_positivo = 0.0
     jugador_y_cambio_negativo = 0.0
     
-    pedido_actual = None
-    tiene_paquete = False
+    # Sistema de pedidos múltiples
+    ofertas = []
+    activos = []
+    llevando_id = None
     ultimo_tick_energia = pygame.time.get_ticks()
-    msg = "Bienvenido a Courier Quest"
+    msg = "Bienvenido a Courier Quest - TAB para abrir panel de pedidos"
     
     # Guardado automático
     ultimo_guardado_auto = pygame.time.get_ticks()
-    intervalo_guardado_auto = 30000
+    intervalo_guardado_auto = 30000  # 30 segundos
     
-
+    # Mensaje temporal para guardado automático
+    msg_temporal = None
+    tiempo_msg_temporal = 0
+    duracion_msg_temporal = 2000  # 2 segundos
+    
+    # Panel de pedidos
+    panel_abierto = False
+    panel_tab = 0  # 0=Ofertas, 1=Activos
+    panel_idx = 0
+    
+    # Spawn de ofertas
+    ultimo_spawn = pygame.time.get_ticks()
+    
+    # Estados
     estado = MENU
     menu_idx = 0
     menu_msg = ""
     
-   
     # Sistema de clima
     weather_system = WeatherSystem()
     
     # Cargar datos desde API
-    datos.cargarDatosAPI(BASE_URL)
-    
-    def spawnear_cliente(lejos_de, img_cliente, min_dist=180):
-        """Generate a valid position for a client"""
-        for _ in range(400):
-            x = random.randint(40, ANCHO - 40)
-            y = random.randint(40, ALTO - 40)
-            p = pygame.Rect(0, 0, 32, 32)
-            p.center = (x, y)
-            
-            #verificar que esté dentro de la pantalla
-            if not pantalla.get_rect().contains(p):
-                continue
-                
-            valid = True
-            for w in obstaculos:
-                if p.colliderect(w):
-                    valid = False
-                    break
-                    
-            if valid and math.hypot(x - lejos_de[0], y - lejos_de[1]) >= min_dist:
-                return img_cliente.get_rect(center=(x, y))
-        return img_cliente.get_rect(center=(80, 80))
-    
+    datos.cargarDatosAPI()
+
     def reset_partida():
-        nonlocal jugador_rect, pedido_actual, tiene_paquete, entregas, energia, dinero_ganado, reputacion, msg
-        nonlocal racha_sin_penalizacion, primera_tardanza_fecha
+        nonlocal jugador_rect, energia, dinero_ganado, reputacion, msg
+        nonlocal racha_sin_penalizacion, primera_tardanza_fecha, entregas
+        nonlocal ofertas, activos, llevando_id, ultimo_spawn, ultimo_guardado_auto
+        nonlocal msg_temporal, tiempo_msg_temporal, weather_system
         
-        jugador_rect.topleft = (728, 836)
-        pedido_actual = nuevo_pedido()
-        tiene_paquete = False
-        entregas = 0
+        jugador_rect = pygame.Rect(728, 836, 48, 48)  # Crear nuevo rect
         energia = 100
         dinero_ganado = 0
         reputacion = 70
-        msg = "Acércate al cliente y acepta (Q) o rechaza (R) el pedido"
+        msg = "TAB para abrir panel de pedidos"
         racha_sin_penalizacion = 0
         primera_tardanza_fecha = None
+        entregas = 0
+        ofertas = [nuevo_pedido(jugador_rect, img_cliente, OBSTACULOS, pantalla) for _ in range(3)]
+        activos = []
+        llevando_id = None
+        ultimo_spawn = pygame.time.get_ticks()
         ultimo_guardado_auto = pygame.time.get_ticks()
+        msg_temporal = None
     
-    def nuevo_pedido():
-        pickup = spawnear_cliente(jugador_rect.center, img_cliente)
-        dropoff = spawnear_cliente(pickup.center, img_cliente)
-        now = pygame.time.get_ticks()
-        duration = random.randint(60000, 120000)
-        return {
-            "pickup": pickup,
-            "dropoff": dropoff,
-            "payout": random.randint(10, 50),
-            "peso": random.randint(1, 10),
-            "deadline": now + duration,
-            "created_at": now,
-            "duration": duration
-        }
-    
-    def calcular_velocidad(peso_total, reputacion, energia, weather_multiplier):
-        """Calculate player velocity based on various factors"""
-        Mpeso = max(0.8, 1 - 0.03 * peso_total)
-        Mrep = 1.03 if reputacion >= 90 else 1.0
+    # Reiniciar sistema de clima
+    weather_system = WeatherSystem()
+
+    def fin_derrota():
+        nonlocal estado, msg
+        msg = "¡Has perdido! Tu reputación llegó a menos de 20."
+        datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
+        pygame.display.flip()
+        pygame.time.wait(2000)
+        estado = MENU
+
+    def actualizar_clima():
+        """Actualiza el sistema de clima"""
+        ahora = pygame.time.get_ticks()
+        if weather_system.transicion:
+            dur = weather_system.transicion_duracion if weather_system.transicion_duracion > 0 else 1
+            t = (ahora - weather_system.transicion_inicio) / dur
+            if t >= 1.0:
+                weather_system.clima_actual = weather_system.clima_objetivo
+                weather_system.intensidad_actual = weather_system.intensidad_objetivo
+                weather_system.transicion = False
+                weather_system.ultimo_cambio_clima = ahora
+                weather_system.duracion_actual = random.uniform(45000, 60000)
+            else:
+                weather_system.intensidad_actual = (1 - t) * weather_system.intensidad_inicio + t * weather_system.intensidad_objetivo
+            return
         
-        if energia > 30:
-            Mresistencia = 1.0
-        elif energia > 10:
-            Mresistencia = 0.8
-        else:
-            Mresistencia = 0.0
-            
-        surf_weight = 1.0
-        return v0 * Mpeso * Mrep * Mresistencia * weather_multiplier * surf_weight
-    
-    def calcular_movimiento(vx_raw, vy_raw, VEL, dt):
-        """Calculate movement vector"""
-        dx = dy = 0.0
-        if vx_raw != 0.0 or vy_raw != 0.0:
-            l = math.hypot(vx_raw, vy_raw)
-            if l != 0:
-                ux, uy = vx_raw / l, vy_raw / l
-                dx, dy = ux * VEL * dt, uy * VEL * dt
-        return dx, dy
-    
-    def mover_con_colision(rect, dx, dy, paredes):
-        """Move rectangle with collision detection"""
-        rect.x += int(round(dx))
-        for w in paredes:
-            if rect.colliderect(w):
-                if dx > 0:
-                    rect.right = w.left
-                elif dx < 0:
-                    rect.left = w.right
-        rect.y += int(round(dy))
-        for w in paredes:
-            if rect.colliderect(w):
-                if dy > 0:
-                    rect.bottom = w.top
-                elif dy < 0:
-                    rect.top = w.bottom
-        rect.clamp_ip(pantalla.get_rect())
+        if ahora - weather_system.ultimo_cambio_clima > weather_system.duracion_actual:
+            siguiente = weather_system.elegir_siguiente_clima(weather_system.clima_actual)
+            weather_system.iniciar_transicion(siguiente, ahora)
 
-    def dibujar_fondo_y_obs():
-        base_color = weather_system.get_base_color()
-        pantalla.fill(base_color)
-
-        for r in obstaculos:
-            pygame.draw.rect(pantalla, (170, 120, 80), r, border_radius=6)
-            pygame.draw.rect(pantalla, (140, 90, 60), r, 3, border_radius=6)
-
-    def dibujar_barra(x, y, valor, max_valor, ancho, alto):
-        v = max(0, min(valor, max_valor))
-        pygame.draw.rect(pantalla, (60, 60, 60), (x, y, ancho, alto))
-        relleno = int((v / max_valor) * ancho) if max_valor > 0 else 0
-        if relleno > 0:
-            pygame.draw.rect(pantalla, (0, 200, 0), (x, y, relleno, alto))
-
-    def dibujar_menu(opciones, seleccionado, titulo="Courier Quest", subtitulo="Usa ↑/↓ y ENTER"):
-        pantalla.fill((20, 24, 28))
-        t = font_big.render(titulo, True, (255, 255, 255))
-        pantalla.blit(t, (ANCHO // 2 - t.get_width() // 2, 140))
-        s = font.render(subtitulo, True, (200, 200, 200))
-        pantalla.blit(s, (ANCHO // 2 - s.get_width() // 2, 200))
-        y0 = 280
-        for i, op in enumerate(opciones):
-            color = (255, 255, 0) if i == seleccionado else (220, 220, 220)
-            surf = font.render(op, True, color)
-            pantalla.blit(surf, (ANCHO // 2 - surf.get_width() // 2, y0 + i * 44))
-
-    def dibujar_records():
-        pantalla.fill((20, 24, 28))
-        t = font_big.render("Records", True, (255, 255, 255))
-        pantalla.blit(t, (ANCHO // 2 - t.get_width() // 2, 120))
-        recs = datos.cargar_records(RECORDS_FILE)
-        if not recs:
-            pantalla.blit(font.render("No hay records aún.", True, (220, 220, 220)), (ANCHO // 2 - 120, 220))
-        else:
-            y = 220
-            for idx, r in enumerate(recs, 1):
-                linea = f"{idx:>2}. Entregas: {r.get('entregas',0):>3}  |  Dinero: {r.get('dinero',0):>4}  |  {r.get('fecha','')}"
-                pantalla.blit(font.render(linea, True, (230, 230, 230)), (ANCHO // 2 - 280, y))
-                y += 34
-        pantalla.blit(font.render("ESC: volver", True, (200, 200, 200)), (20, ALTO - 40))
-
-    def dibujar_hud():
-        y = 8
-        linea_clima = f"Clima: {CLIMAS_ES.get(weather_system.clima_actual, weather_system.clima_actual)} ({weather_system.intensidad_actual:.2f})"
-        lineas = (
-            "Q: aceptar | R: rechazar | E: entregar | G: guardar | ESC: menú",
-            f"Entregas: {entregas}",
-            f"Dinero ganado: {dinero_ganado} $",
-            f"Reputación: {reputacion}",
-            linea_clima,
-            msg,
-        )
-        for linea in lineas:
-            pantalla.blit(font.render(linea, True, (255, 255, 255)), (10, y))
-            y += 26
-
-        pantalla.blit(font.render("Energía:", True, (255, 255, 255)), (10, y))
-        dibujar_barra(100, y, energia, 100, 200, 18)
-
-        if reputacion >= 90:
-            pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
-    
-    #guardado automatico
-    def guardar_partida_automatica():
-        """Salvar el progreso automatico"""
-        snapshot = {
-            "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
-            "tiene_paquete": tiene_paquete,
-            "entregas": entregas,
-            "energia": energia,
-            "dinero": dinero_ganado,
-            "reputacion": reputacion,
-            "msg": msg,
-            "racha_sin_penalizacion": racha_sin_penalizacion,
-            "primera_tardanza_fecha": primera_tardanza_fecha.isoformat() if primera_tardanza_fecha else None
-        }
-        
-        if pedido_actual:
-            snapshot["pedido"] = {
-                "pickup": [pedido_actual["pickup"].x, pedido_actual["pickup"].y,
-                          pedido_actual["pickup"].width, pedido_actual["pickup"].height],
-                "dropoff": [pedido_actual["dropoff"].x, pedido_actual["dropoff"].y,
-                           pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
-                "payout": pedido_actual["payout"],
-                "peso": pedido_actual["peso"],
-                "deadline": pedido_actual["deadline"],
-                "created_at": pedido_actual.get("created_at", pygame.time.get_ticks()),
-                "duration": pedido_actual.get("duration", 60000)
-            }
-        
-        return datos.guardar_partida(snapshot, SAVE_FILE)
-
-
-    #inicializar pedido
-    pedido_actual = nuevo_pedido()
-    
-    # Bucle principal
     clock = pygame.time.Clock()
     corriendo = True
     
     while corriendo:
-        
         if energia == 0 and estado == GAME:
             msg = "Sin energía. Cargando..."
-            dibujar_fondo_y_obs()
+            dibujar_fondo_y_obs(pantalla, weather_system.clima_actual)
             
-            if pedido_actual:
-                if not tiene_paquete:
-                    pygame.draw.rect(pantalla, (0, 255, 0), pedido_actual["pickup"], 3)
-                    pantalla.blit(img_cliente, pedido_actual["pickup"].topleft)
+            # Dibujar pedidos activos
+            for p in activos:
+                col = color_for_order(p['id'])
+                pygame.draw.rect(pantalla, col, p["pickup"], 2)
+                pygame.draw.rect(pantalla, col, p["dropoff"], 2)
+                if llevando_id == p['id']:
+                    draw_dropoff_icon(pantalla, p["dropoff"], col)
                 else:
-                    pygame.draw.rect(pantalla, (255, 0, 0), pedido_actual["dropoff"], 3)
-                    pantalla.blit(img_cliente, pedido_actual["dropoff"].topleft)
+                    draw_pickup_icon(pantalla, p["pickup"], col)
             
             pantalla.blit(img_jugador, jugador_rect.topleft)
-            dibujar_hud()
+            dibujar_hud(pantalla, font, entregas, dinero_ganado, reputacion, 
+                       weather_system.clima_actual, weather_system.intensidad_actual, 
+                       msg, energia)
+            
+            # Dibujar mensaje temporal si existe
+            if msg_temporal:
+                msg_surf = font.render(msg_temporal, True, (120, 255, 120))
+                pantalla.blit(msg_surf, (ANCHO - msg_surf.get_width() - 20, ALTO - 40))
+            
+            if panel_abierto:
+                dibujar_panel(pantalla, font, font_big, panel_tab, panel_idx, ofertas, activos)
             pygame.display.flip()
             pygame.time.wait(60000)
             energia = 70
@@ -288,22 +164,7 @@ def main():
         dt = clock.tick(FPS) / 1000.0
         ahora = pygame.time.get_ticks()
 
-        # AUTO  guardado cada 30 segundos de juego
-        if estado == GAME and ahora - ultimo_guardado_auto > intervalo_guardado_auto:
-            ok, m = guardar_partida_automatica()
-            if ok:
-                # Muestre mensaje de guardado 
-                msg_original = msg
-                msg = "Partida guardada automáticamente"
-                ultimo_guardado_auto = ahora
-            else:
-                print(f"Error en guardado automático: {m}")
-
-
-        #Actualizar clima
-        weather_system.actualizar(ahora)
-
-        #Estado del juego
+        # Estado del juego
         if estado == MENU:
             opciones = ["Nuevo juego", "Cargar partida", "Records", "Salir"]
             for ev in pygame.event.get():
@@ -321,53 +182,37 @@ def main():
                             menu_msg = ""
                             estado = GAME
                         elif seleccion == "Cargar partida":
-                            data = datos.cargar_partida(SAVE_FILE)
-                            if data:
-                                print(f"Loaded data: {data}") # cargar partida 
-                                j = data.get("jugador")
-                                if j:
-                                    jugador_rect.topleft = (int(j.get("x", 728)), int(j.get("y", 836)))
-                                
-                                p = data.get("pedido")
-                                if p:
-                                    try:
-                                        pedido_actual = {
-                                            "pickup": pygame.Rect(*p["pickup"]),
-                                            "dropoff": pygame.Rect(*p["dropoff"]),
-                                            "payout": p["payout"],
-                                            "peso": p["peso"],
-                                            "deadline": p["deadline"],
-                                            "created_at": p.get("created_at", ahora),
-                                            "duration": p.get("duration", 60000)
-                                        }
-                                    except:
-                                        pedido_actual = nuevo_pedido()
-                                
-                                tiene_paquete = data.get("tiene_paquete", False)
-                                entregas = int(data.get("entregas", 0))
-                                energia = int(data.get("energia", 100))
-                                dinero_ganado = int(data.get("dinero", 0))
-                                reputacion = int(data.get("reputacion", 70))
-                                msg = data.get("msg", msg)
-                                racha_sin_penalizacion = int(data.get("racha_sin_penalizacion", 0))
-                                
+                            loaded_data = datos.cargar_partida(SAVE_FILE)
+                            if loaded_data:
+                                jugador_rect = loaded_data['jugador_rect']
+                                activos = loaded_data['activos']
+                                ofertas = loaded_data['ofertas']
+                                llevando_id = loaded_data['llevando_id']
+                                entregas = loaded_data['entregas']
+                                energia = loaded_data['energia']
+                                dinero_ganado = loaded_data['dinero_ganado']
+                                reputacion = loaded_data['reputacion']
+                                msg = loaded_data['msg']
+                                racha_sin_penalizacion = loaded_data['racha_sin_penalizacion']
+                                primera_tardanza_fecha = loaded_data['primera_tardanza_fecha']
+                                weather_system = WeatherSystem()
                                 menu_msg = "Partida cargada"
                                 estado = GAME
                             else:
-                                menu_msg = "No hay partida guardada"
+                                menu_msg = "No hay partida guardada o error al cargar"
                         elif seleccion == "Records":
                             estado = RECORDS
                         elif seleccion == "Salir":
                             corriendo = False
             
-            dibujar_menu(opciones, menu_idx)
+            dibujar_menu(pantalla, opciones, menu_idx, font, font_big)
             if menu_msg:
                 info = font.render(menu_msg, True, (255, 220, 120))
                 pantalla.blit(info, (ANCHO // 2 - info.get_width() // 2, 280 + len(opciones) * 44 + 20))
             pygame.display.flip()
             continue
 
-        #Dibujar records
+        # Dibujar records
         if estado == RECORDS:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
@@ -375,64 +220,71 @@ def main():
                 elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
                     estado = MENU
             
-            dibujar_records()
+            dibujar_records(pantalla, font, font_big, RECORDS_FILE)
             pygame.display.flip()
             continue
 
-        # Calcular velocidad
-        peso_total = pedido_actual["peso"] if (pedido_actual and tiene_paquete) else 0
-        VEL = calcular_velocidad(peso_total, reputacion, energia, weather_system.get_weather_multiplier())
-
-        # Energia
-        moving = (jugador_x_cambio_positivo != 0.0 or jugador_x_cambio_negativo != 0.0 or
-                  jugador_y_cambio_positivo != 0.0 or jugador_y_cambio_negativo != 0.0)
+        # ===== GAME LOGIC =====
         
+        # Guardado automático cada 30 segundos
+        if estado == GAME and ahora - ultimo_guardado_auto > intervalo_guardado_auto:
+            snapshot = datos.snapshot_partida(
+                jugador_rect, activos, ofertas, llevando_id, entregas, energia,
+                dinero_ganado, reputacion, msg, racha_sin_penalizacion, primera_tardanza_fecha
+            )
+            ok, m = datos.guardar_partida(snapshot, SAVE_FILE)
+            if ok:
+                msg_temporal = "✓ Partida guardada automáticamente"
+                tiempo_msg_temporal = ahora
+                ultimo_guardado_auto = ahora
+            else:
+                msg_temporal = f"✗ Error: {m}"
+                tiempo_msg_temporal = ahora
+        
+        # Manejar mensaje temporal (guardado automático)
+        if msg_temporal and ahora - tiempo_msg_temporal > duracion_msg_temporal:
+            msg_temporal = None
+        
+        # Actualizar sistemas
+        actualizar_clima()
+        ultimo_spawn = intentar_spawn_oferta(ofertas, ultimo_spawn, OFERTAS_MAX, SPAWN_CADA_MS, 
+                                           jugador_rect, img_cliente, OBSTACULOS, pantalla)
+
+        # Energía
         if ahora - ultimo_tick_energia >= 1000:
+            moving = (jugador_x_cambio_positivo or jugador_x_cambio_negativo or 
+                     jugador_y_cambio_positivo or jugador_y_cambio_negativo)
             if moving:
                 costo = weather_system.get_energy_cost()
-                if tiene_paquete and pedido_actual:
-                    costo += pedido_actual["peso"] // 5
+                if llevando_id is not None:
+                    p = next((x for x in activos if x["id"] == llevando_id), None)
+                    if p:
+                        costo += p["peso"] // 5
                 energia = max(0, energia - int(round(costo)))
             ultimo_tick_energia = ahora
 
         # Manejo de eventos
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                 corriendo = False
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_ESCAPE:
-                    datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
+                    datos.registrar_record(entregas, dinero_ganado, reputacion, RECORDS_FILE)
                     estado = MENU
-                    menu_msg = "Sesión guardada en records"
-                elif evento.key == pygame.K_g:  #Guardar partida 
-                    ok, m = guardar_partida_automatica()
-                    msg = m
-                    ultimo_guardado_auto = ahora
-                    snapshot = {
-                        "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
-                        "pedido": {
-                            "pickup": [pedido_actual["pickup"].x, pedido_actual["pickup"].y,
-                                      pedido_actual["pickup"].width, pedido_actual["pickup"].height],
-                            "dropoff": [pedido_actual["dropoff"].x, pedido_actual["dropoff"].y,
-                                       pedido_actual["dropoff"].width, pedido_actual["dropoff"].height],
-                            "payout": pedido_actual["payout"],
-                            "peso": pedido_actual["peso"],
-                            "deadline": pedido_actual["deadline"],
-                            "created_at": pedido_actual.get("created_at"),
-                            "duration": pedido_actual.get("duration")
-                        },
-                        "tiene_paquete": tiene_paquete,
-                        "entregas": entregas,
-                        "energia": energia,
-                        "dinero": dinero_ganado,
-                        "reputacion": reputacion,
-                        "msg": msg,
-                        "racha_sin_penalizacion": racha_sin_penalizacion,
-                        "primera_tardanza_fecha": primera_tardanza_fecha.isoformat() if primera_tardanza_fecha else None
-                    }
+                elif evento.key == pygame.K_g:  # Guardar partida manual
+                    snapshot = datos.snapshot_partida(
+                        jugador_rect, activos, ofertas, llevando_id, entregas, energia,
+                        dinero_ganado, reputacion, msg, racha_sin_penalizacion, primera_tardanza_fecha
+                    )
                     ok, m = datos.guardar_partida(snapshot, SAVE_FILE)
-                    msg = m
+                    if ok:
+                        msg_temporal = "✓ Partida guardada manualmente"
+                    else:
+                        msg_temporal = f"✗ Error: {m}"
+                    tiempo_msg_temporal = ahora
+                    # Reiniciar contador de guardado automático
+                    ultimo_guardado_auto = ahora
                 elif evento.key in (pygame.K_DOWN, pygame.K_s):
                     jugador_y_cambio_positivo = 0.1
                 elif evento.key in (pygame.K_UP, pygame.K_w):
@@ -441,70 +293,86 @@ def main():
                     jugador_x_cambio_negativo = -0.1
                 elif evento.key in (pygame.K_RIGHT, pygame.K_d):
                     jugador_x_cambio_positivo = 0.1
-                elif evento.key == pygame.K_q:  #Aceptar pedido
-                    if pedido_actual and jugador_rect.colliderect(pedido_actual["pickup"]) and not tiene_paquete:
-                        tiene_paquete = True
-                        msg = f"Pedido aceptado ({pedido_actual['peso']}kg)"
-                elif evento.key == pygame.K_r:  #Rechazar pedido 
-                    if pedido_actual and jugador_rect.colliderect(pedido_actual["pickup"]) and not tiene_paquete:
-                        pedido_actual = nuevo_pedido()
-                        msg = "Pedido rechazado"
-                    elif tiene_paquete and pedido_actual:
-                        # Cancelar pedido en curso
-                        (reputacion, cambio, game_over, 
-                         racha_sin_penalizacion, 
-                         primera_tardanza_fecha) = actualizar_reputacion(
-                            'cancelado', reputacion, racha_sin_penalizacion, primera_tardanza_fecha
+                elif evento.key == pygame.K_TAB:
+                    panel_abierto = not panel_abierto
+                    panel_idx = 0
+                elif panel_abierto and evento.key in (pygame.K_LEFT,):
+                    panel_tab = (panel_tab - 1) % 2
+                    panel_idx = 0
+                elif panel_abierto and evento.key in (pygame.K_RIGHT,):
+                    panel_tab = (panel_tab + 1) % 2
+                    panel_idx = 0
+                elif panel_abierto and evento.key in (pygame.K_UP,):
+                    lista = ofertas if panel_tab == 0 else activos
+                    if lista:
+                        panel_idx = (panel_idx - 1) % len(lista)
+                elif panel_abierto and evento.key in (pygame.K_DOWN,):
+                    lista = ofertas if panel_tab == 0 else activos
+                    if lista:
+                        panel_idx = (panel_idx + 1) % len(lista)
+                elif panel_abierto and evento.key == pygame.K_RETURN:
+                    if panel_tab == 0:
+                        p, new_msg = aceptar_oferta_seleccionada(panel_tab, panel_idx, ofertas, activos)
+                        if p:
+                            msg = new_msg
+                    else:
+                        p, new_llevando_id, new_msg, new_reputacion, game_over, new_racha, new_fecha = cancelar_activo_seleccionado(
+                            panel_tab, panel_idx, activos, llevando_id, reputacion, racha_sin_penalizacion, primera_tardanza_fecha
                         )
-                        tiene_paquete = False
-                        pedido_actual = nuevo_pedido()
-                        msg = f"Pedido cancelado. Reputación {reputacion} ({cambio})"
-                        if game_over:
-                            msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                            datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
-                            pygame.display.flip()
-                            pygame.time.wait(2000)
-                            estado = MENU
-                elif evento.key == pygame.K_e:  #Entregar pedido
-                    if tiene_paquete and pedido_actual and jugador_rect.colliderect(pedido_actual["dropoff"]):
-                        
-                        now = pygame.time.get_ticks()
-                        duration = pedido_actual.get("duration", 
-                            max(60000, pedido_actual["deadline"] - pedido_actual.get("created_at", now)))
-                        tiempo_restante = pedido_actual["deadline"] - now
+                        if p:
+                            llevando_id = new_llevando_id
+                            msg = new_msg
+                            reputacion = new_reputacion
+                            racha_sin_penalizacion = new_racha
+                            primera_tardanza_fecha = new_fecha
+                            if game_over:
+                                fin_derrota()
+                elif panel_abierto and evento.key == pygame.K_r:
+                    if panel_tab == 0:
+                        p, new_msg = rechazar_oferta_seleccionada(panel_tab, panel_idx, ofertas)
+                        if p:
+                            msg = new_msg
+                elif evento.key == pygame.K_q:  # Recoger paquete
+                    if llevando_id is None:
+                        for p in activos:
+                            if jugador_rect.colliderect(p["pickup"]):
+                                llevando_id = p["id"]
+                                msg = f"Recogido #{p['id']} ({p['peso']}kg)"
+                                break
+                elif evento.key == pygame.K_e:  # Entregar paquete
+                    if llevando_id is not None:
+                        p = next((x for x in activos if x["id"] == llevando_id), None)
+                        if p and jugador_rect.colliderect(p["dropoff"]):
+                            now = pygame.time.get_ticks()
+                            duration = p.get("duration", max(60000, p["deadline"] - p.get("created_at", now)))
+                            tiempo_restante = p["deadline"] - now
 
-                        if tiempo_restante >= 0:
-                            if tiempo_restante >= 0.2 * duration:
-                                evento_str = 'temprano'
-                                msg = "Entrega temprana"
+                            if tiempo_restante >= 0:
+                                if tiempo_restante >= 0.2 * duration:
+                                    evento_str = 'temprano'
+                                    msg = "Entrega temprana"
+                                else:
+                                    evento_str = 'a_tiempo'
+                                    msg = "Entrega a tiempo"
                             else:
-                                evento_str = 'a_tiempo'
-                                msg = "Entrega a tiempo"
-                        else:
-                            retraso_seg = (now - pedido_actual["deadline"]) / 1000.0
-                            evento_str = 'tarde'
-                            msg = f"Entrega tardía ({int(retraso_seg)}s)"
+                                retraso_seg = (now - p["deadline"]) / 1000.0
+                                evento_str = 'tarde'
+                                msg = f"Entrega tardía ({int(retraso_seg)}s)"
 
-                        # Actualizar reputación
-                        (reputacion, cambio, game_over, 
-                         racha_sin_penalizacion, 
-                         primera_tardanza_fecha) = actualizar_reputacion(
-                            evento_str, reputacion, racha_sin_penalizacion, primera_tardanza_fecha,
-                            retraso_seg if evento_str == 'tarde' else 0
-                        )
+                            # Actualizar reputación
+                            reputacion, cambio, game_over, racha_sin_penalizacion, primera_tardanza_fecha = actualizar_reputacion(
+                                evento_str, reputacion, racha_sin_penalizacion, primera_tardanza_fecha,
+                                retraso_seg if evento_str == 'tarde' else 0
+                            )
 
-                        # Actualizar dinero y estado
-                        dinero_ganado += calcular_pago(pedido_actual.get("payout", 0), reputacion)
-                        entregas += 1
-                        tiene_paquete = False
-                        pedido_actual = nuevo_pedido()
+                            # Actualizar dinero y estado
+                            dinero_ganado += calcular_pago(p.get("payout", 0), reputacion)
+                            activos = [x for x in activos if x["id"] != llevando_id]
+                            entregas += 1
+                            llevando_id = None
 
-                        if game_over:
-                            msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                            datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
-                            pygame.display.flip()
-                            pygame.time.wait(2000)
-                            estado = MENU
+                            if game_over:
+                                fin_derrota()
 
             elif evento.type == pygame.KEYUP:
                 if evento.key in (pygame.K_DOWN, pygame.K_s):
@@ -516,46 +384,67 @@ def main():
                 elif evento.key in (pygame.K_RIGHT, pygame.K_d):
                     jugador_x_cambio_positivo = 0.0
 
-        # Calcular movimiento
+        # Calcular velocidad
+        peso_total = 0
+        if llevando_id is not None:
+            p = next((x for x in activos if x["id"] == llevando_id), None)
+            if p:
+                peso_total = p["peso"]
+        
+        VEL = calcular_velocidad(peso_total, reputacion, energia, weather_system.get_weather_multiplier())
+
+        # Movimiento
         vx_raw = jugador_x_cambio_positivo + jugador_x_cambio_negativo
         vy_raw = jugador_y_cambio_positivo + jugador_y_cambio_negativo
-        dx, dy = calcular_movimiento(vx_raw, vy_raw, VEL, dt)
-        mover_con_colision(jugador_rect, dx, dy, obstaculos)
+        dx = dy = 0.0
+        if vx_raw != 0.0 or vy_raw != 0.0:
+            l = math.hypot(vx_raw, vy_raw)
+            if l != 0:
+                ux, uy = vx_raw / l, vy_raw / l
+                dx, dy = ux * VEL * dt, uy * VEL * dt
+        mover_con_colision(jugador_rect, dx, dy, OBSTACULOS, pantalla)
 
-        # Verificar expiración del pedido
-        if pedido_actual and tiene_paquete and ahora > pedido_actual["deadline"]:
-            
-            (reputacion, cambio, game_over, 
-             racha_sin_penalizacion, 
-             primera_tardanza_fecha) = actualizar_reputacion(
+        # Verificar expiraciones
+        ahora_ms = pygame.time.get_ticks()
+        expirados = [p for p in activos if ahora_ms > p["deadline"]]
+        for p in expirados:
+            reputacion, cambio, game_over, racha_sin_penalizacion, primera_tardanza_fecha = actualizar_reputacion(
                 'perdido', reputacion, racha_sin_penalizacion, primera_tardanza_fecha
             )
-            
+            if llevando_id == p["id"]:
+                llevando_id = None
+            activos = [x for x in activos if x["id"] != p["id"]]
+            msg = f"Pedido #{p['id']} expiró ({cambio})"
             if game_over:
-                msg = "¡Has perdido! Tu reputación llegó a menos de 20."
-                datos.registrar_record(entregas, dinero_ganado, RECORDS_FILE)
-                pygame.display.flip()
-                pygame.time.wait(2000)
-                estado = MENU
-            else:
-                msg = "El paquete expiró"
-            
-            tiene_paquete = False
-            pedido_actual = nuevo_pedido()
+                fin_derrota()
+                break
 
-        # Dibujar todo
-        dibujar_fondo_y_obs()
+        # ===== DIBUJADO =====
+        dibujar_fondo_y_obs(pantalla, weather_system.clima_actual)
         
-        if pedido_actual:
-            if not tiene_paquete:
-                pygame.draw.rect(pantalla, (0, 255, 0), pedido_actual["pickup"], 3)
-                pantalla.blit(img_cliente, pedido_actual["pickup"].topleft)
+        # Dibujar pedidos activos
+        for p in activos:
+            col = color_for_order(p['id'])
+            pygame.draw.rect(pantalla, col, p["pickup"], 3)
+            pygame.draw.rect(pantalla, col, p["dropoff"], 3)
+            if llevando_id == p['id']:
+                draw_dropoff_icon(pantalla, p["dropoff"], col)
             else:
-                pygame.draw.rect(pantalla, (255, 0, 0), pedido_actual["dropoff"], 3)
-                pantalla.blit(img_cliente, pedido_actual["dropoff"].topleft)
+                draw_pickup_icon(pantalla, p["pickup"], col)
         
         pantalla.blit(img_jugador, jugador_rect.topleft)
-        dibujar_hud()
+        dibujar_hud(pantalla, font, entregas, dinero_ganado, reputacion, 
+                   weather_system.clima_actual, weather_system.intensidad_actual, 
+                   msg, energia)
+        
+        # Dibujar mensaje temporal de guardado (si existe)
+        if msg_temporal:
+            msg_surf = font.render(msg_temporal, True, (120, 255, 120))
+            pantalla.blit(msg_surf, (ANCHO - msg_surf.get_width() - 20, ALTO - 40))
+        
+        if panel_abierto:
+            dibujar_panel(pantalla, font, font_big, panel_tab, panel_idx, ofertas, activos)
+        
         pygame.display.flip()
 
     pygame.quit()

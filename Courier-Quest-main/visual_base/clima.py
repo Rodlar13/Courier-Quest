@@ -1,58 +1,5 @@
-
 import random
-
-
-CLIMAS_ES = {
-    "clear": "Despejado",
-    "clouds": "Nublado",
-    "rain_light": "Lluvia ligera",
-    "rain": "Lluvia",
-    "storm": "Tormenta",
-    "fog": "Niebla",
-    "wind": "Viento",
-    "heat": "Calor",
-    "cold": "Frío"
-}
-
-# Markov 
-TRANSICIONES = {
-    "clear": [
-        ("clear", 0.40), ("clouds", 0.25), ("rain_light", 0.10),
-        ("fog", 0.05), ("wind", 0.05), ("heat", 0.10), ("cold", 0.05)
-    ],
-    "clouds": [
-        ("clear", 0.20), ("clouds", 0.40), ("rain_light", 0.15),
-        ("rain", 0.10), ("fog", 0.05), ("wind", 0.05), ("cold", 0.05)
-    ],
-    "rain_light": [
-        ("clouds", 0.20), ("rain_light", 0.30), ("rain", 0.25),
-        ("storm", 0.10), ("fog", 0.05), ("clear", 0.10)
-    ],
-    "rain": [
-        ("rain", 0.30), ("rain_light", 0.20), ("storm", 0.20),
-        ("clouds", 0.20), ("clear", 0.10)
-    ],
-    "storm": [
-        ("storm", 0.30), ("rain", 0.30), ("rain_light", 0.15),
-        ("clouds", 0.15), ("clear", 0.10)
-    ],
-    "fog": [
-        ("fog", 0.30), ("clouds", 0.25), ("clear", 0.20),
-        ("rain_light", 0.10), ("rain", 0.10), ("cold", 0.05)
-    ],
-    "wind": [
-        ("wind", 0.30), ("clear", 0.25), ("clouds", 0.20),
-        ("rain_light", 0.10), ("rain", 0.10), ("storm", 0.05)
-    ],
-    "heat": [
-        ("heat", 0.40), ("clear", 0.30), ("clouds", 0.15),
-        ("wind", 0.10), ("storm", 0.05)
-    ],
-    "cold": [
-        ("cold", 0.40), ("clouds", 0.25), ("clear", 0.20),
-        ("fog", 0.10), ("snow", 0.05)
-    ]
-}
+import pygame
 
 class WeatherSystem:
     def __init__(self):
@@ -64,11 +11,57 @@ class WeatherSystem:
         self.transicion = False
         self.transicion_inicio = 0
         self.transicion_duracion = 0
-        self.ultimo_cambio_clima = 0
+        self.ultimo_cambio_clima = pygame.time.get_ticks()
         self.duracion_actual = random.uniform(45000, 60000)
 
+    # Markov transitions
+    TRANSICIONES = {
+        "clear": [
+            ("clear", 0.40), ("clouds", 0.25), ("rain_light", 0.10),
+            ("fog", 0.05), ("wind", 0.05), ("heat", 0.10), ("cold", 0.05)
+        ],
+        "clouds": [
+            ("clear", 0.20), ("clouds", 0.40), ("rain_light", 0.15),
+            ("rain", 0.10), ("fog", 0.05), ("wind", 0.05), ("cold", 0.05)
+        ],
+        "rain_light": [
+            ("clouds", 0.20), ("rain_light", 0.30), ("rain", 0.25),
+            ("storm", 0.10), ("fog", 0.05), ("clear", 0.10)
+        ],
+        "rain": [
+            ("rain", 0.30), ("rain_light", 0.20), ("storm", 0.20),
+            ("clouds", 0.20), ("clear", 0.10)
+        ],
+        "storm": [
+            ("storm", 0.30), ("rain", 0.30), ("rain_light", 0.15),
+            ("clouds", 0.15), ("clear", 0.10)
+        ],
+        "fog": [
+            ("fog", 0.30), ("clouds", 0.25), ("clear", 0.20),
+            ("rain_light", 0.10), ("rain", 0.10), ("cold", 0.05)
+        ],
+        "wind": [
+            ("wind", 0.30), ("clear", 0.25), ("clouds", 0.20),
+            ("rain_light", 0.10), ("rain", 0.10), ("storm", 0.05)
+        ],
+        "heat": [
+            ("heat", 0.40), ("clear", 0.30), ("clouds", 0.15),
+            ("wind", 0.10), ("storm", 0.05)
+        ],
+        "cold": [
+            ("cold", 0.40), ("clouds", 0.25), ("clear", 0.20),
+            ("fog", 0.10), ("snow", 0.05)
+        ]
+    }
+
+    CLIMAS_ES = {
+        "clear": "Despejado", "clouds": "Nublado", "rain_light": "Lluvia ligera",
+        "rain": "Lluvia", "storm": "Tormenta", "fog": "Niebla",
+        "wind": "Viento", "heat": "Calor", "cold": "Frío"
+    }
+
     def elegir_siguiente_clima(self, actual):
-        trans = TRANSICIONES.get(actual, TRANSICIONES["clear"])
+        trans = self.TRANSICIONES.get(actual, self.TRANSICIONES["clear"])
         r = random.random()
         acumulado = 0.0
         for estado, prob in trans:
@@ -137,17 +130,3 @@ class WeatherSystem:
             "cold": 1.2
         }
         return costs.get(self.clima_actual, 1)
-
-    def get_base_color(self):
-        """Returns background color based on weather"""
-        colors = {
-            "clear": (51, 124, 196),
-            "rain": (40, 80, 120),
-            "rain_light": (40, 80, 120),
-            "storm": (40, 80, 120),
-            "clouds": (80, 110, 140),
-            "fog": (80, 110, 140),
-            "heat": (140, 120, 80),
-            "cold": (90, 110, 140)
-        }
-        return colors.get(self.clima_actual, (51, 124, 196))
