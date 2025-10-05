@@ -1,23 +1,25 @@
 # Estructuras.py
 # Archivo completo con lógica de juego y reputación según las reglas especificadas.
-
+"""
 import os
 import sys
 import json
 import random
 import math
 from datetime import datetime, date
+"""
 
 # -------------------- imports externos --------------------
+"""
 try:
     import pygame
 except Exception:
     print("ERROR: pygame no está instalado. Ejecuta 'pip install pygame' y vuelve a intentar.")
     sys.exit(1)
-
+"""
 # -------------------- Configuración API (opcional) --------------------
-BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
-
+#BASE_URL = "https://tigerds-api.kindflower-ccaf48b6.eastus.azurecontainerapps.io"
+"""
 
 def obtener_datos_API(endpoint, archivo):
     try:
@@ -52,15 +54,17 @@ def cargarDatosAPI():
 
 # Intentar cargar datos (no obligatorio)
 cargarDatosAPI()
-
+"""
 # -------------------- Configuración general --------------------
+"""
 ANCHO, ALTO = 1500, 900
 FPS = 60
 CELDA = 48
 v0 = 3 * CELDA  # velocidad base (px/seg)
 SAVE_FILE = "partida.json"
 RECORDS_FILE = "records.json"
-
+"""
+""""
 pygame.init()
 pantalla = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Courier Quest")
@@ -68,16 +72,17 @@ pygame.display.set_caption("Courier Quest")
 # Fuentes
 font = pygame.font.SysFont(None, 22)
 font_big = pygame.font.SysFont(None, 44)
-
+"""
 # -------------------- Imágenes --------------------
+"""
 TAM_JUGADOR = (48, 48)
 TAM_CLIENTE = (42, 42)
 TAM_ICONO = (32, 32)
 
 
 def cargar_imagen_robusta(nombre, size=None, exit_on_fail=False):
-    """Intenta cargar una imagen desde el directorio del script. Si falla, retorna una superficie simple.
-    Si exit_on_fail es True terminará el programa."""
+    Intenta cargar una imagen desde el directorio del script. Si falla, retorna una superficie simple.
+    Si exit_on_fail es True terminará el programa.
     ruta = os.path.join(os.path.dirname(__file__), nombre)
     try:
         img = pygame.image.load(ruta)
@@ -99,7 +104,9 @@ pygame.display.set_icon(icono)
 img_jugador = cargar_imagen_robusta("mensajero.png", TAM_JUGADOR)
 img_cliente = cargar_imagen_robusta("audiencia.png", TAM_CLIENTE)
 
+"""
 # -------------------- Obstáculos --------------------
+"""
 OBSTACULOS = [
     pygame.Rect(120, 120, 225, 140),  pygame.Rect(465, 120, 225, 140),
     pygame.Rect(810, 120, 225, 140),  pygame.Rect(1155, 120, 225, 140),
@@ -108,8 +115,10 @@ OBSTACULOS = [
     pygame.Rect(120, 640, 225, 140),  pygame.Rect(465, 640, 225, 140),
     pygame.Rect(810, 640, 225, 140),  pygame.Rect(1155, 640, 225, 140),
 ]
+"""""
 
 # -------------------- Estados globales --------------------
+"""
 energia = 100
 dinero_ganado = 0
 reputacion = 70 # INICIAL SEGUN REGLA
@@ -128,10 +137,11 @@ tiene_paquete = False
 ultimo_tick_energia = pygame.time.get_ticks()
 msg = "Bienvenido a Courier Quest"
 
+"""
 # -------------------- Reputación: reglas e implementación --------------------
-
+"""
 def calcular_pago(base_pago):
-    """Aplica bonus de reputación: +5% si reputación >= 90"""
+    Aplica bonus de reputación: +5% si reputación >= 90
     global reputacion
     if reputacion >= 90:
         return int(round(base_pago * 1.05))
@@ -139,11 +149,11 @@ def calcular_pago(base_pago):
 
 
 def actualizar_reputacion(evento, tiempo_retraso_seg=0):
-    """Aplica la regla de reputación. Devuelve (cambio, game_over_bool).
+    Aplica la regla de reputación. Devuelve (cambio, game_over_bool).
 
     evento: 'temprano', 'a_tiempo', 'tarde', 'cancelado', 'perdido'
     tiempo_retraso_seg: segundos de retraso (solo para 'tarde')
-    """
+    
     global reputacion, racha_sin_penalizacion, primera_tardanza_fecha
 
     cambio = 0
@@ -189,9 +199,9 @@ def actualizar_reputacion(evento, tiempo_retraso_seg=0):
 
     game_over = reputacion < 20
     return cambio, game_over
-
+"""
 # -------------------- Funciones auxiliares --------------------
-
+"""
 def dentro_pantalla(rect):
     return pantalla.get_rect().contains(rect)
 
@@ -250,9 +260,10 @@ def mover_con_colision(rect: pygame.Rect, dx: float, dy: float, paredes):
             elif dy < 0:
                 rect.top = w.bottom
     rect.clamp_ip(pantalla.get_rect())
+    """
 
 # -------------------- Guardar/Cargar partida --------------------
-
+"""
 def snapshot_partida():
     return {
         "jugador": {"x": jugador_rect.x, "y": jugador_rect.y},
@@ -343,9 +354,9 @@ def cargar_partida():
         return False, "No hay partida guardada"
     except Exception as e:
         return False, f"Error al cargar: {e}"
-
+"""
 # -------------------- Records --------------------
-
+"""
 def cargar_records():
     try:
         with open(RECORDS_FILE, "r", encoding="utf-8") as f:
@@ -372,8 +383,10 @@ def registrar_record():
     recs.sort(key=lambda r: (r.get("entregas", 0), r.get("dinero", 0)), reverse=True)
     recs = recs[:10]
     guardar_records(recs)
-
+"""
 # -------------------- Sistema de Clima --------------------
+
+"""""
 # Mapeo reducido: display en español
 CLIMAS_ES = {
     "clear": "Despejado",
@@ -450,7 +463,7 @@ def elegir_siguiente_clima(actual):
     return actual
 
 def iniciar_transicion(nuevo_clima, ahora_ms):
-    """Prepara variables para una transición suave"""
+    Prepara variables para una transición suave
     global clima_objetivo, intensidad_objetivo, transicion, transicion_inicio, transicion_duracion, intensidad_inicio
     clima_objetivo = nuevo_clima
     intensidad_objetivo = random.uniform(0.3, 1.0)
@@ -460,7 +473,7 @@ def iniciar_transicion(nuevo_clima, ahora_ms):
     transicion_duracion = random.uniform(3000, 5000)  # ms
 
 def actualizar_clima():
-    """Se llama cada frame. Controla ráfagas y transiciones (usa ms de pygame)."""
+    Se llama cada frame. Controla ráfagas y transiciones (usa ms de pygame).
     global clima_actual, intensidad_actual, clima_objetivo, intensidad_objetivo
     global transicion, transicion_inicio, transicion_duracion, intensidad_inicio
     global ultimo_cambio_clima, duracion_actual
@@ -487,9 +500,9 @@ def actualizar_clima():
     if ahora - ultimo_cambio_clima > duracion_actual:
         siguiente = elegir_siguiente_clima(clima_actual)
         iniciar_transicion(siguiente, ahora)
-
+"""
 # -------------------- Dibujo --------------------
-
+"""
 def dibujar_fondo_y_obs():
     base_color = (51, 124, 196)
     if clima_actual in ("rain", "storm", "rain_light"):
@@ -566,7 +579,11 @@ def dibujar_hud():
     if reputacion >= 90:
         pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
 
+
+"""
+
 # -------------------- Máquina de estados --------------------
+"""
 INICIO, MENU, GAME, RECORDS = 0, 1, 2, 3
 estado = MENU
 menu_idx = 0
@@ -589,8 +606,10 @@ def reset_partida():
 
 clock = pygame.time.Clock()
 corriendo = True
-
+"""
 # -------------------- Lazo principal --------------------
+"""
+
 while corriendo:
     # Si la energía es 0, pausar el juego 60 segundos y recargar a 70
     if energia == 0:
@@ -614,8 +633,9 @@ while corriendo:
 
     dt = clock.tick(FPS) / 1000.0
     ahora = pygame.time.get_ticks()
-
+"""
     # -------- Velocidad dinámica --------
+"""
     peso_total = pedido_actual["peso"] if (pedido_actual and tiene_paquete) else 0
     Mpeso = max(0.8, 1 - 0.03 * peso_total)
     Mrep = 1.03 if reputacion >= 90 else 1.0
@@ -681,8 +701,9 @@ while corriendo:
         dibujar_records()
         pygame.display.flip()
         continue
-
+"""
     # -------------------- Actualizaciones por frame --------------------
+""" 
     actualizar_clima()
 
     # Disminuir energía una vez por segundo si se está moviendo
@@ -706,8 +727,9 @@ while corriendo:
                 costo += pedido_actual["peso"] // 5
             energia = max(0, energia - int(round(costo)))
         ultimo_tick_energia = ahora
-
+"""
     # -------------------- Manejo eventos --------------------
+"""
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             registrar_record()
@@ -791,7 +813,9 @@ while corriendo:
             elif evento.key in (pygame.K_RIGHT, pygame.K_d):
                 jugador_x_cambio_positivo = 0.0
 
+                """
     # -------------------- Movimiento --------------------
+"""
     vx_raw = jugador_x_cambio_positivo + jugador_x_cambio_negativo
     vy_raw = jugador_y_cambio_positivo + jugador_y_cambio_negativo
     dx = dy = 0.0
@@ -830,5 +854,5 @@ while corriendo:
     pantalla.blit(img_jugador, jugador_rect.topleft)
     dibujar_hud()
     pygame.display.flip()
-
-pygame.quit()
+"""
+#pygame.quit()
