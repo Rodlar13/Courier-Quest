@@ -61,7 +61,7 @@ def dibujar_menu(pantalla, opciones, seleccionado, font, font_big, titulo="Couri
         pantalla.blit(surf, (pantalla.get_width() // 2 - surf.get_width() // 2, y0 + i * 44))
 
 def dibujar_hud(pantalla, font, entregas, dinero_ganado, reputacion, clima_actual, intensidad_actual, 
-                msg, energia):
+                msg, energia, cpu_entregas=None, cpu_dinero=None, cpu_reputacion=None, cpu_energia=None):
     y = 8
     linea_clima = f"Clima: {CLIMAS_ES.get(clima_actual, clima_actual)} ({intensidad_actual:.2f})"
     lineas = (
@@ -79,6 +79,19 @@ def dibujar_hud(pantalla, font, entregas, dinero_ganado, reputacion, clima_actua
 
     pantalla.blit(font.render("Energía:", True, (255, 255, 255)), (10, y))
     dibujar_barra(pantalla, 100, y, energia, 100, 200, 18)
+
+    # Información y barra de energía del jugador CPU 
+    if cpu_energia is not None:
+        y += 30
+        pantalla.blit(font.render("Energía CPU:", True, (200, 200, 255)), (10, y))
+        dibujar_barra(pantalla, 140, y, cpu_energia, 100, 200, 18)
+        y += 26
+        if cpu_entregas is not None:
+            pantalla.blit(font.render(f"CPU entregas: {cpu_entregas}", True, (200, 200, 255)), (10, y))
+            y += 22
+            pantalla.blit(font.render(f"CPU dinero: {cpu_dinero} $", True, (200, 200, 255)), (10, y))
+            y += 22
+            pantalla.blit(font.render(f"CPU reputación: {cpu_reputacion}", True, (200, 200, 255)), (10, y))
 
     if reputacion >= 90:
         pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
@@ -143,7 +156,7 @@ def dibujar_panel(pantalla, font, font_big, panel_tab, panel_idx, ofertas, activ
         pantalla.blit(font.render(tiempo, True, (220, 220, 220)), (rect.x + 44, y + 22))
         y += 64
 
-# graficos.py - Función dibujar_records corregida
+# graficos.py - Función dibujar_records 
 def dibujar_records(pantalla, font, font_big, RECORDS_FILE):
     """Dibuja la pantalla de records con score y reputación"""
     from datos import cargar_records
@@ -230,3 +243,68 @@ def dibujar_records(pantalla, font, font_big, RECORDS_FILE):
     # Leyenda de colores
     leyenda = font.render("Score: Verde = ≥100,000 | Blanco = <100,000", True, (150, 150, 150))
     pantalla.blit(leyenda, (ANCHO // 2 - leyenda.get_width() // 2, ALTO - 30))
+    
+    
+    
+    
+    
+    # datos IA
+     
+def seleccionar_dificultad_menu(pantalla, font, font_big):
+        # Menú para seleccionar dificultad del juego
+    opciones = ["Fácil", "Medio", "Difícil"]
+    seleccionado = 0
+    corriendo = True
+    
+    while corriendo:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key in (pygame.K_UP, pygame.K_w):
+                    seleccionado = (seleccionado - 1) % len(opciones)
+                elif evento.key in (pygame.K_DOWN, pygame.K_s):
+                    seleccionado = (seleccionado + 1) % len(opciones)
+                elif evento.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    return opciones[seleccionado]
+                elif evento.key == pygame.K_ESCAPE:
+                    return None
+        
+        # Dibujar menú de dificultad
+        pantalla.fill((20, 24, 28))
+        
+        # Título
+        titulo = font_big.render("Seleccionar Dificultad", True, (255, 255, 255))
+        pantalla.blit(titulo, (ANCHO // 2 - titulo.get_width() // 2, 140))
+        
+        # Descripciones de dificultad
+        descripciones = {
+            "Fácil": "IA toma decisiones aleatorias",
+            "Medio": "IA evalúa movimientos futuros", 
+            "Difícil": "IA busca rutas óptimas con Dijkstra"
+        }
+        
+        # Dibujar opciones
+        y0 = 280
+        for i, opcion in enumerate(opciones):
+            color = (255, 255, 0) if i == seleccionado else (220, 220, 220)
+            texto = font.render(opcion, True, color)
+            pantalla.blit(texto, (ANCHO // 2 - texto.get_width() // 2, y0 + i * 60))
+            
+            # Dibujar descripción
+            desc = font.render(descripciones[opcion], True, (180, 180, 180))
+            pantalla.blit(desc, (ANCHO // 2 - desc.get_width() // 2, y0 + i * 60 + 30))
+        
+        # Instrucciones
+        instrucciones = font.render("Usa ↑/↓ para navegar, ENTER para seleccionar, ESC para volver", 
+                                  True, (150, 150, 150))
+        pantalla.blit(instrucciones, (ANCHO // 2 - instrucciones.get_width() // 2, ALTO - 60))
+        
+        pygame.display.flip()
+    
+    return None
+
+
+
+

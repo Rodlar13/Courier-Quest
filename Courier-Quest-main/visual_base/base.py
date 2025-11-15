@@ -57,19 +57,26 @@ def mover_con_colision(rect: pygame.Rect, dx: float, dy: float, paredes, pantall
     rect.clamp_ip(pantalla.get_rect())
 
 def calcular_velocidad(peso_total, reputacion, energia, weather_multiplier):
-    """Calculate player velocity based on various factors"""
+    """Calculate player (and CPU) velocity based on various factors.
+
+    Ajustado para que nunca se quede totalmente inmóvil por energía baja:
+    - >30   -> velocidad normal
+    - 10-30 -> velocidad reducida
+    - <=10  -> velocidad muy reducida, pero no cero
+    """
     Mpeso = max(0.8, 1 - 0.03 * peso_total)
     Mrep = 1.03 if reputacion >= 90 else 1.0
-    
+
     if energia > 30:
         Mresistencia = 1.0
     elif energia > 10:
-        Mresistencia = 0.8
+        Mresistencia = 0.7
     else:
-        Mresistencia = 0.0
-        
+        Mresistencia = 0.4
+
     surf_weight = 1.0
     return 3 * 48 * Mpeso * Mrep * Mresistencia * weather_multiplier * surf_weight  # v0 = 3 * CELDA
+
 
 # Order ID generator
 _next_order_id = 1
