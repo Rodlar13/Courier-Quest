@@ -1,0 +1,183 @@
+{
+  "jugador": {
+    "x": 745,
+    "y": 265
+  },
+  "activos": [
+    {
+      "id": 3,
+      "pickup": [
+        988,
+        553,
+        42,
+        42
+      ],
+      "dropoff": [
+        764,
+        138,
+        42,
+        42
+      ],
+      "payout": 10,
+      "peso": 6,
+      "deadline": 106159,
+      "created_at": 4583,
+      "duration": 101576,
+      "aceptado": true,
+      "llevando": true
+    },
+    {
+      "id": 4,
+      "pickup": [
+        1342,
+        312,
+        42,
+        42
+      ],
+      "dropoff": [
+        1035,
+        745,
+        42,
+        42
+      ],
+      "payout": 46,
+      "peso": 2,
+      "deadline": 130207,
+      "created_at": 10590,
+      "duration": 119617,
+      "aceptado": true,
+      "llevando": false
+    }
+  ],
+  "ofertas": [
+    {
+      "id": 5,
+      "pickup": [
+        111,
+        813,
+        42,
+        42
+      ],
+      "dropoff": [
+        837,
+        552,
+        42,
+        42
+      ],
+      "payout": 29,
+      "peso": 10,
+      "deadline": 133068,
+      "created_at": 16604,
+      "duration": 116464
+    },
+    {
+      "id": 6,
+      "pickup": [
+        1302,
+        818,
+        42,
+        42
+      ],
+      "dropoff": [
+        609,
+        799,
+        42,
+        42
+      ],
+      "payout": 20,
+      "peso": 9,
+      "deadline": 87017,
+      "created_at": 22613,
+      "duration": 64404
+    },
+    {
+      "id": 7,
+      "pickup": [
+        1396,
+        303,
+        42,
+        42
+      ],
+      "dropoff": [
+        453,
+        585,
+        42,
+        42
+      ],
+      "payout": 25,
+      "peso": 8,
+      "deadline": 135562,
+      "created_at": 28625,
+      "duration": 106937
+    },
+    {
+      "id": 8,
+      "pickup": [
+        1209,
+        56,
+        42,
+        42
+      ],
+      "dropoff": [
+        1402,
+        170,
+        42,
+        42
+      ],
+      "payout": 13,
+      "peso": 6,
+      "deadline": 140315,
+      "created_at": 34628,
+      "duration": 105687
+    },
+    {
+      "id": 9,
+      "pickup": [
+        1102,
+        148,
+        42,
+        42
+      ],
+      "dropoff": [
+        1392,
+        255,
+        42,
+        42
+      ],
+      "payout": 32,
+      "peso": 7,
+      "deadline": 133880,
+      "created_at": 54983,
+      "duration": 78897
+    },
+    {
+      "id": 10,
+      "pickup": [
+        1131,
+        564,
+        42,
+        42
+      ],
+      "dropoff": [
+        138,
+        339,
+        42,
+        42
+      ],
+      "payout": 31,
+      "peso": 6,
+      "deadline": 135189,
+      "created_at": 60994,
+      "duration": 74195
+    }
+  ],
+  "llevando_id": 3,
+  "entregas": 2,
+  "energia": 92,
+  "dinero": 89,
+  "reputacion": 80,
+  "msg": "Recogido #3 (6kg)",
+  "racha_sin_penalizacion": 2,
+  "primera_tardanza_fecha": null,
+  "dificultad": "Difícil"
+}
