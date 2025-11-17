@@ -1,0 +1,161 @@
+{
+  "jugador": {
+    "x": 728,
+    "y": 239
+  },
+  "activos": [
+    {
+      "id": 4,
+      "pickup": [
+        743,
+        563,
+        42,
+        42
+      ],
+      "dropoff": [
+        79,
+        543,
+        42,
+        42
+      ],
+      "payout": 22,
+      "peso": 1,
+      "deadline": 149744,
+      "created_at": 44294,
+      "duration": 105450,
+      "aceptado": true,
+      "llevando": false
+    }
+  ],
+  "ofertas": [
+    {
+      "id": 5,
+      "pickup": [
+        1384,
+        285,
+        42,
+        42
+      ],
+      "dropoff": [
+        710,
+        796,
+        42,
+        42
+      ],
+      "payout": 19,
+      "peso": 7,
+      "deadline": 151246,
+      "created_at": 44294,
+      "duration": 106952
+    },
+    {
+      "id": 6,
+      "pickup": [
+        1027,
+        834,
+        42,
+        42
+      ],
+      "dropoff": [
+        449,
+        65,
+        42,
+        42
+      ],
+      "payout": 47,
+      "peso": 5,
+      "deadline": 163534,
+      "created_at": 44294,
+      "duration": 119240
+    },
+    {
+      "id": 7,
+      "pickup": [
+        1373,
+        549,
+        42,
+        42
+      ],
+      "dropoff": [
+        83,
+        371,
+        42,
+        42
+      ],
+      "payout": 32,
+      "peso": 2,
+      "deadline": 140956,
+      "created_at": 50310,
+      "duration": 90646
+    },
+    {
+      "id": 8,
+      "pickup": [
+        1031,
+        378,
+        42,
+        42
+      ],
+      "dropoff": [
+        1404,
+        624,
+        42,
+        42
+      ],
+      "payout": 49,
+      "peso": 8,
+      "deadline": 166338,
+      "created_at": 56327,
+      "duration": 110011
+    },
+    {
+      "id": 9,
+      "pickup": [
+        446,
+        781,
+        42,
+        42
+      ],
+      "dropoff": [
+        792,
+        40,
+        42,
+        42
+      ],
+      "payout": 21,
+      "peso": 5,
+      "deadline": 179176,
+      "created_at": 62329,
+      "duration": 116847
+    },
+    {
+      "id": 10,
+      "pickup": [
+        327,
+        538,
+        42,
+        42
+      ],
+      "dropoff": [
+        1056,
+        464,
+        42,
+        42
+      ],
+      "payout": 28,
+      "peso": 6,
+      "deadline": 169893,
+      "created_at": 70975,
+      "duration": 98918
+    }
+  ],
+  "llevando_id": null,
+  "entregas": 0,
+  "energia": 99,
+  "dinero": 0,
+  "reputacion": 70,
+  "msg": "Pedido #4 aceptado",
+  "racha_sin_penalizacion": 0,
+  "primera_tardanza_fecha": null,
+  "dificultad": "Medio"
+}
