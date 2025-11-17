@@ -1,7 +1,59 @@
 # game_map.py
 import heapq
+import math
 import pygame
 from configurar import ANCHO, ALTO, OBSTACULOS
+
+
+def greedy_best_first(grafo, inicio, fin, sistema_clima=None):
+    """
+    Greedy Best-First Search.
+    Retorna (camino, costo_estimado)
+    """
+    try:
+        if not grafo.nodos:
+            return [], 1000
+        
+        inicio = encontrar_nodo_cercano(grafo, inicio)
+        fin = encontrar_nodo_cercano(grafo, fin)
+        if inicio is None or fin is None:
+            return [], 1000
+        
+        # Estructuras
+        frontera = []
+        heapq.heappush(frontera, (0, inicio))
+        came_from = {}
+        visitados = set()
+        visitados.add(inicio)
+        
+        while frontera:
+            _, actual = heapq.heappop(frontera)
+            
+            if actual == fin:
+                # Reconstruir camino
+                camino = []
+                nodo = fin
+                while nodo in came_from:
+                    camino.append(nodo)
+                    nodo = came_from[nodo]
+                camino.append(inicio)
+                camino.reverse()
+                # Costo aproximado (heurística)
+                return camino, math.hypot(fin[0]-inicio[0], fin[1]-inicio[1])
+            
+            # Explorar vecinos
+            for vecino in grafo.aristas.get(actual, {}):
+                if vecino not in visitados:
+                    visitados.add(vecino)
+                    prioridad = math.hypot(vecino[0]-fin[0], vecino[1]-fin[1])
+                    heapq.heappush(frontera, (prioridad, vecino))
+                    came_from[vecino] = actual
+        
+        return [], 1000
+    
+    except Exception as e:
+        print(f"Error en Greedy Best-First: {e}")
+        return [], 1000 
 
 class Grafo:
     def __init__(self):

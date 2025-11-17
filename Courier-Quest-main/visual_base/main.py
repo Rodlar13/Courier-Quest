@@ -6,9 +6,10 @@ import datos
 from reputacion import *
 from clima import *
 from base import *
+from grafo import *
 from graficos import *
 from IAdificil import *
-
+from IAMedio import *
 
 def seleccionar_dificultad_menu(pantalla, font, font_big):
     """Menú para seleccionar dificultad del juego"""
@@ -41,7 +42,7 @@ def seleccionar_dificultad_menu(pantalla, font, font_big):
         # Descripciones de dificultad
         descripciones = {
             "Fácil": "IA toma decisiones aleatorias",
-            "Medio": "IA evalúa movimientos futuros", 
+            "Medio": "IA busca rutas óptima con Búsqueda Greedy", 
             "Difícil": "IA busca rutas óptimas con Dijkstra"
         }
         
@@ -66,8 +67,8 @@ def seleccionar_dificultad_menu(pantalla, font, font_big):
     return None
 
 def dibujar_hud_completo(pantalla, font, entregas, dinero_ganado, reputacion, clima_actual, intensidad_actual, 
-                        msg, energia, cpu_entregas=0, cpu_dinero=0, cpu_reputacion=0, cpu_energia=0, cpu_ia=None):
-    """Dibuja HUD con información del jugador y todas las IAs"""
+                        msg, energia, dificultad_actual=None,
+                        cpu_entregas=0, cpu_dinero=0, cpu_reputacion=0, cpu_energia=0, cpu_ia=None):
     y = 8
     linea_clima = f"Clima: {CLIMAS_ES.get(clima_actual, clima_actual)} ({intensidad_actual:.2f})"
     
@@ -86,6 +87,7 @@ def dibujar_hud_completo(pantalla, font, entregas, dinero_ganado, reputacion, cl
         pantalla.blit(font.render(linea, True, (255, 255, 255)), (10, y))
         y += 26
 
+
     # Barra de energía jugador
     pantalla.blit(font.render("Energía:", True, (255, 255, 255)), (10, y))
     dibujar_barra(pantalla, 100, y, energia, 100, 200, 18)
@@ -93,25 +95,36 @@ def dibujar_hud_completo(pantalla, font, entregas, dinero_ganado, reputacion, cl
     if reputacion >= 90:
         pantalla.blit(font.render("Pago: +5% (Excelencia)", True, (255, 220, 120)), (320, 8))
     
-    # Información de IA fácil
-    if cpu_entregas > 0 or cpu_dinero > 0:
-        y_ia_facil = 8
-        info_ia_facil = f"IA Fácil: {cpu_entregas}ent ${cpu_dinero} | Rep: {cpu_reputacion}"
-        pantalla.blit(font.render(info_ia_facil, True, (100, 255, 100)), (ANCHO - 300, y_ia_facil))
-        
-        # Barra de energía IA fácil
-        pantalla.blit(font.render("Energía IA Fácil:", True, (100, 255, 100)), (ANCHO - 300, y_ia_facil + 20))
-        dibujar_barra(pantalla, ANCHO - 150, y_ia_facil + 20, cpu_energia, 100, 120, 10)
-    
-    # Información de IA difícil
-    if cpu_ia:
-        y_ia_dificil = 50 if cpu_entregas > 0 or cpu_dinero > 0 else 8
-        info_ia_dificil = f"IA Difícil: {cpu_ia.entregas}ent ${cpu_ia.dinero_ganado} | Rep: {cpu_ia.reputacion}"
-        pantalla.blit(font.render(info_ia_dificil, True, (255, 100, 100)), (ANCHO - 300, y_ia_dificil))
-        
-        # Barra de energía IA difícil
-        pantalla.blit(font.render("Energía IA Difícil:", True, (255, 100, 100)), (ANCHO - 300, y_ia_dificil + 20))
-        dibujar_barra(pantalla, ANCHO - 150, y_ia_dificil + 20, cpu_ia.energia, 100, 120, 10)
+
+    # Mostrar solo la IA correspondiente a la dificultad seleccionada
+    x_texto = ANCHO - 350  
+    x_barra = ANCHO - 200
+    y_ia = 8
+    espacio = 20
+
+    if dificultad_actual == 'Fácil' and (cpu_entregas > 0 or cpu_dinero > 0):
+        pantalla.blit(font.render(f"Dinero: ${cpu_dinero}", True, (100, 255, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render(f"Entregas: {cpu_entregas}", True, (100, 255, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render("Energía IA Fácil:", True, (100, 255, 100)), (x_texto, y_ia))
+        dibujar_barra(pantalla, x_barra, y_ia, cpu_energia, 100, 120, 10)
+
+    elif dificultad_actual == 'Medio' and cpu_ia:
+        pantalla.blit(font.render(f"Dinero: ${cpu_ia.dinero_ganado}", True, (255, 100, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render(f"Entregas: {cpu_ia.entregas}", True, (255, 100, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render("Energía IA Medio:", True, (255, 100, 100)), (x_texto, y_ia))
+        dibujar_barra(pantalla, x_barra, y_ia, cpu_ia.energia, 100, 120, 10)
+
+    elif dificultad_actual == 'Difícil' and cpu_ia:
+        pantalla.blit(font.render(f"Dinero: ${cpu_ia.dinero_ganado}", True, (255, 100, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render(f"Entregas: {cpu_ia.entregas}", True, (255, 100, 100)), (x_texto, y_ia))
+        y_ia += espacio
+        pantalla.blit(font.render("Energía IA Difícil:", True, (255, 100, 100)), (x_texto, y_ia))
+        dibujar_barra(pantalla, x_barra, y_ia, cpu_ia.energia, 100, 120, 10)
 
 def main():
     pygame.init()
@@ -513,9 +526,8 @@ def main():
                                     
                                     
                                 elif dificultad_seleccionada == 'Medio':
-                                    # Por ahora usar fácil
-                                    reset_cpu_state()
-                                    
+                                    # Inicializar IA medio
+                                    cpu_ia = IAMedio("CPU-Medio", mapa_ciudad, weather_system, pantalla)                                    
                                     
                                 elif dificultad_seleccionada == 'Difícil':
                                     # Inicializar IA difícil
@@ -549,7 +561,11 @@ def main():
                                     mapa_ciudad = MapaJuego()
                                     cpu_ia = IADificil("CPU-Difícil", mapa_ciudad, weather_system, pantalla)
                                 else:
-                                    reset_cpu_state()
+                                    if dificultad_cargada == 'Medio':
+                                        mapa_ciudad = MapaJuego()
+                                        cpu_ia = IAMedio("CPU-Medio", mapa_ciudad, weather_system, pantalla)
+                                    else:
+                                        reset_cpu_state()
                                 
                                 menu_msg = "Partida cargada"
                                 estado = GAME
@@ -849,18 +865,19 @@ def main():
         # Dibujar jugador humano
         pantalla.blit(img_jugador, jugador_rect.topleft)
         
-        # Dibujar IA fácil (si está activa)
-        if cpu_rect is not None and dificultad_actual in ['Fácil', 'Medio']:
+        # Dibujar IA fácil 
+        if cpu_rect is not None and dificultad_actual in ['Fácil']:
             pantalla.blit(img_cpu, cpu_rect.topleft)
-            
-        # Dibujar IA difícil (si está activa)
+
+        # Dibujar IA difícil
         if cpu_ia:
             cpu_ia.dibujar(pantalla, img_cpu)
             
         # Dibujar HUD completo
         dibujar_hud_completo(pantalla, font, entregas, dinero_ganado, reputacion,
-                            weather_system.clima_actual, weather_system.intensidad_actual,
-                            msg, energia, cpu_entregas, cpu_dinero, cpu_reputacion, cpu_energia, cpu_ia)
+                              weather_system.clima_actual, weather_system.intensidad_actual,
+                              msg, energia, dificultad_actual, 
+                              cpu_entregas, cpu_dinero, cpu_reputacion, cpu_energia, cpu_ia)
 
         if msg_temporal:
             msg_surf = font.render(msg_temporal, True, (120, 255, 120))
