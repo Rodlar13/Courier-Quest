@@ -1,183 +1,138 @@
 {
   "jugador": {
-    "x": 745,
-    "y": 265
+    "x": 750,
+    "y": 332
   },
-  "activos": [
-    {
-      "id": 3,
-      "pickup": [
-        988,
-        553,
-        42,
-        42
-      ],
-      "dropoff": [
-        764,
-        138,
-        42,
-        42
-      ],
-      "payout": 10,
-      "peso": 6,
-      "deadline": 106159,
-      "created_at": 4583,
-      "duration": 101576,
-      "aceptado": true,
-      "llevando": true
-    },
-    {
-      "id": 4,
-      "pickup": [
-        1342,
-        312,
-        42,
-        42
-      ],
-      "dropoff": [
-        1035,
-        745,
-        42,
-        42
-      ],
-      "payout": 46,
-      "peso": 2,
-      "deadline": 130207,
-      "created_at": 10590,
-      "duration": 119617,
-      "aceptado": true,
-      "llevando": false
-    }
-  ],
+  "activos": [],
   "ofertas": [
     {
-      "id": 5,
+      "id": 11,
       "pickup": [
-        111,
-        813,
+        1084,
+        46,
         42,
         42
       ],
       "dropoff": [
-        837,
-        552,
+        423,
+        119,
         42,
         42
       ],
-      "payout": 29,
-      "peso": 10,
-      "deadline": 133068,
-      "created_at": 16604,
-      "duration": 116464
+      "payout": 27,
+      "peso": 2,
+      "deadline": 208160,
+      "created_at": 97956,
+      "duration": 110204
     },
     {
-      "id": 6,
+      "id": 12,
       "pickup": [
-        1302,
-        818,
+        1399,
+        212,
         42,
         42
       ],
       "dropoff": [
-        609,
-        799,
+        68,
+        514,
         42,
         42
       ],
-      "payout": 20,
-      "peso": 9,
-      "deadline": 87017,
-      "created_at": 22613,
-      "duration": 64404
-    },
-    {
-      "id": 7,
-      "pickup": [
-        1396,
-        303,
-        42,
-        42
-      ],
-      "dropoff": [
-        453,
-        585,
-        42,
-        42
-      ],
-      "payout": 25,
+      "payout": 33,
       "peso": 8,
-      "deadline": 135562,
-      "created_at": 28625,
-      "duration": 106937
+      "deadline": 194933,
+      "created_at": 97956,
+      "duration": 96977
     },
     {
-      "id": 8,
+      "id": 13,
       "pickup": [
-        1209,
-        56,
+        52,
+        285,
         42,
         42
       ],
       "dropoff": [
-        1402,
-        170,
+        1389,
+        219,
         42,
         42
       ],
-      "payout": 13,
-      "peso": 6,
-      "deadline": 140315,
-      "created_at": 34628,
-      "duration": 105687
+      "payout": 44,
+      "peso": 4,
+      "deadline": 185699,
+      "created_at": 97956,
+      "duration": 87743
     },
     {
-      "id": 9,
+      "id": 14,
       "pickup": [
-        1102,
-        148,
+        870,
+        558,
         42,
         42
       ],
       "dropoff": [
-        1392,
-        255,
+        338,
+        538,
         42,
         42
       ],
       "payout": 32,
-      "peso": 7,
-      "deadline": 133880,
-      "created_at": 54983,
-      "duration": 78897
+      "peso": 3,
+      "deadline": 189732,
+      "created_at": 103965,
+      "duration": 85767
     },
     {
-      "id": 10,
+      "id": 15,
       "pickup": [
-        1131,
-        564,
+        1438,
+        583,
         42,
         42
       ],
       "dropoff": [
-        138,
-        339,
+        459,
+        59,
         42,
         42
       ],
-      "payout": 31,
-      "peso": 6,
-      "deadline": 135189,
-      "created_at": 60994,
-      "duration": 74195
+      "payout": 46,
+      "peso": 7,
+      "deadline": 171198,
+      "created_at": 109979,
+      "duration": 61219
+    },
+    {
+      "id": 16,
+      "pickup": [
+        495,
+        838,
+        42,
+        42
+      ],
+      "dropoff": [
+        947,
+        65,
+        42,
+        42
+      ],
+      "payout": 28,
+      "peso": 2,
+      "deadline": 179228,
+      "created_at": 115984,
+      "duration": 63244
     }
   ],
-  "llevando_id": 3,
-  "entregas": 2,
-  "energia": 92,
-  "dinero": 89,
-  "reputacion": 80,
-  "msg": "Recogido #3 (6kg)",
-  "racha_sin_penalizacion": 2,
+  "llevando_id": null,
+  "entregas": 0,
+  "energia": 100,
+  "dinero": 0,
+  "reputacion": 70,
+  "msg": "TAB para abrir panel de pedidos",
+  "racha_sin_penalizacion": 0,
   "primera_tardanza_fecha": null,
-  "dificultad": "Difícil"
+  "dificultad": "Medio"
 }

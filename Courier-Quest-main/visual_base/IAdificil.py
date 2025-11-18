@@ -60,7 +60,7 @@ class IADificil:
         
           # CONSUMO SIMPLE DE ENERGÍA
         if self.camino_actual and ahora - self.ultimo_consumo > 1000:  # Cada segundo
-            self.energia = max(0, self.energia - 2)
+            self.energia = max(0, self.energia - 3)
             self.ultimo_consumo = ahora
         
         # Mover si hay camino (esto se hace cada frame para movimiento suave)

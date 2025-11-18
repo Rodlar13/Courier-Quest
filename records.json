@@ -36,6 +36,13 @@
   },
   {
     "entregas": 1,
+    "dinero": 38,
+    "reputacion": 69,
+    "score": 2622,
+    "fecha": "2025-11-17 21:24:50"
+  },
+  {
+    "entregas": 1,
     "dinero": 26,
     "reputacion": 75,
     "score": 1950,
@@ -61,12 +68,5 @@
     "reputacion": 70,
     "score": 0,
     "fecha": "2025-11-14 12:29:56"
-  },
-  {
-    "entregas": 0,
-    "dinero": 0,
-    "reputacion": 70,
-    "score": 0,
-    "fecha": "2025-11-14 15:34:27"
   }
 ]
