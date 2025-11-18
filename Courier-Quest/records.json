@@ -1,0 +1,72 @@
+[
+  {
+    "entregas": 4,
+    "dinero": 147,
+    "reputacion": 92,
+    "score": 13524,
+    "fecha": "2025-11-17 10:51:42"
+  },
+  {
+    "entregas": 3,
+    "dinero": 95,
+    "reputacion": 79,
+    "score": 7505,
+    "fecha": "2025-11-14 15:34:19"
+  },
+  {
+    "entregas": 2,
+    "dinero": 73,
+    "reputacion": 80,
+    "score": 5840,
+    "fecha": "2025-11-17 10:39:09"
+  },
+  {
+    "entregas": 2,
+    "dinero": 68,
+    "reputacion": 80,
+    "score": 5440,
+    "fecha": "2025-11-14 16:28:15"
+  },
+  {
+    "entregas": 1,
+    "dinero": 47,
+    "reputacion": 75,
+    "score": 3525,
+    "fecha": "2025-11-14 19:34:41"
+  },
+  {
+    "entregas": 1,
+    "dinero": 44,
+    "reputacion": 75,
+    "score": 3300,
+    "fecha": "2025-11-17 22:17:21"
+  },
+  {
+    "entregas": 1,
+    "dinero": 26,
+    "reputacion": 75,
+    "score": 1950,
+    "fecha": "2025-11-14 16:27:33"
+  },
+  {
+    "entregas": 1,
+    "dinero": 25,
+    "reputacion": 75,
+    "score": 1875,
+    "fecha": "2025-11-17 22:16:29"
+  },
+  {
+    "entregas": 0,
+    "dinero": 0,
+    "reputacion": 70,
+    "score": 0,
+    "fecha": "2025-11-14 12:02:40"
+  },
+  {
+    "entregas": 0,
+    "dinero": 0,
+    "reputacion": 70,
+    "score": 0,
+    "fecha": "2025-11-14 12:24:21"
+  }
+]

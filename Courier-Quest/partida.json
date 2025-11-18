@@ -1,0 +1,138 @@
+{
+  "jugador": {
+    "x": 728,
+    "y": 836
+  },
+  "activos": [],
+  "ofertas": [
+    {
+      "id": 35,
+      "pickup": [
+        178,
+        292,
+        42,
+        42
+      ],
+      "dropoff": [
+        67,
+        96,
+        42,
+        42
+      ],
+      "payout": 36,
+      "peso": 10,
+      "deadline": 284141,
+      "created_at": 194686,
+      "duration": 89455
+    },
+    {
+      "id": 36,
+      "pickup": [
+        741,
+        199,
+        42,
+        42
+      ],
+      "dropoff": [
+        291,
+        311,
+        42,
+        42
+      ],
+      "payout": 25,
+      "peso": 10,
+      "deadline": 265586,
+      "created_at": 194686,
+      "duration": 70900
+    },
+    {
+      "id": 37,
+      "pickup": [
+        863,
+        544,
+        42,
+        42
+      ],
+      "dropoff": [
+        1069,
+        764,
+        42,
+        42
+      ],
+      "payout": 12,
+      "peso": 5,
+      "deadline": 262614,
+      "created_at": 194686,
+      "duration": 67928
+    },
+    {
+      "id": 38,
+      "pickup": [
+        329,
+        560,
+        42,
+        42
+      ],
+      "dropoff": [
+        1300,
+        594,
+        42,
+        42
+      ],
+      "payout": 31,
+      "peso": 1,
+      "deadline": 304508,
+      "created_at": 200689,
+      "duration": 103819
+    },
+    {
+      "id": 39,
+      "pickup": [
+        310,
+        784,
+        42,
+        42
+      ],
+      "dropoff": [
+        436,
+        284,
+        42,
+        42
+      ],
+      "payout": 38,
+      "peso": 8,
+      "deadline": 270718,
+      "created_at": 206695,
+      "duration": 64023
+    },
+    {
+      "id": 40,
+      "pickup": [
+        102,
+        589,
+        42,
+        42
+      ],
+      "dropoff": [
+        74,
+        34,
+        42,
+        42
+      ],
+      "payout": 30,
+      "peso": 3,
+      "deadline": 294408,
+      "created_at": 212707,
+      "duration": 81701
+    }
+  ],
+  "llevando_id": null,
+  "entregas": 0,
+  "energia": 100,
+  "dinero": 0,
+  "reputacion": 70,
+  "msg": "TAB para abrir panel de pedidos",
+  "racha_sin_penalizacion": 0,
+  "primera_tardanza_fecha": null,
+  "dificultad": "Difícil"
+}
