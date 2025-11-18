@@ -1,0 +1,141 @@
+{
+  "jugador": {
+    "x": 346,
+    "y": 580
+  },
+  "activos": [
+    {
+      "id": 28,
+      "pickup": [
+        64,
+        462,
+        42,
+        42
+      ],
+      "dropoff": [
+        295,
+        579,
+        42,
+        42
+      ],
+      "payout": 26,
+      "peso": 7,
+      "deadline": 277269,
+      "created_at": 157432,
+      "duration": 119837,
+      "aceptado": true,
+      "llevando": false
+    }
+  ],
+  "ofertas": [
+    {
+      "id": 29,
+      "pickup": [
+        374,
+        518,
+        42,
+        42
+      ],
+      "dropoff": [
+        770,
+        287,
+        42,
+        42
+      ],
+      "payout": 20,
+      "peso": 5,
+      "deadline": 274242,
+      "created_at": 157432,
+      "duration": 116810
+    },
+    {
+      "id": 30,
+      "pickup": [
+        491,
+        341,
+        42,
+        42
+      ],
+      "dropoff": [
+        741,
+        55,
+        42,
+        42
+      ],
+      "payout": 12,
+      "peso": 2,
+      "deadline": 224545,
+      "created_at": 163444,
+      "duration": 61101
+    },
+    {
+      "id": 31,
+      "pickup": [
+        855,
+        833,
+        42,
+        42
+      ],
+      "dropoff": [
+        1076,
+        600,
+        42,
+        42
+      ],
+      "payout": 47,
+      "peso": 7,
+      "deadline": 276587,
+      "created_at": 169454,
+      "duration": 107133
+    },
+    {
+      "id": 32,
+      "pickup": [
+        1397,
+        198,
+        42,
+        42
+      ],
+      "dropoff": [
+        937,
+        569,
+        42,
+        42
+      ],
+      "payout": 17,
+      "peso": 9,
+      "deadline": 287438,
+      "created_at": 175457,
+      "duration": 111981
+    },
+    {
+      "id": 33,
+      "pickup": [
+        643,
+        265,
+        42,
+        42
+      ],
+      "dropoff": [
+        1163,
+        587,
+        42,
+        42
+      ],
+      "payout": 19,
+      "peso": 7,
+      "deadline": 296984,
+      "created_at": 181471,
+      "duration": 115513
+    }
+  ],
+  "llevando_id": null,
+  "entregas": 1,
+  "energia": 51,
+  "dinero": 35,
+  "reputacion": 75,
+  "msg": "Pedido #28 aceptado",
+  "racha_sin_penalizacion": 1,
+  "primera_tardanza_fecha": null,
+  "dificultad": "Difícil"
+}

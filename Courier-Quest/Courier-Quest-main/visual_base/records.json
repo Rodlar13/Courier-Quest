@@ -1,0 +1,70 @@
+[
+  {
+    "entregas": 4,
+    "dinero": 106,
+    "reputacion": 92,
+    "score": 9752,
+    "fecha": "2025-11-17 20:13:03"
+  },
+  {
+    "entregas": 4,
+    "dinero": 97,
+    "reputacion": 92,
+    "score": 8924,
+    "fecha": "2025-11-17 17:27:04"
+  },
+  {
+    "entregas": 2,
+    "dinero": 61,
+    "reputacion": 80,
+    "score": 4880,
+    "fecha": "2025-11-17 20:14:37"
+  },
+  {
+    "entregas": 3,
+    "dinero": 90,
+    "reputacion": 53,
+    "score": 4770,
+    "fecha": "2025-11-17 17:30:11"
+  },
+  {
+    "entregas": 2,
+    "dinero": 50,
+    "reputacion": 80,
+    "score": 4000,
+    "fecha": "2025-11-17 20:13:41"
+  },
+  {
+    "entregas": 1,
+    "dinero": 46,
+    "reputacion": 75,
+    "score": 3450,
+    "fecha": "2025-11-17 17:25:40"
+  },
+  {
+    "entregas": 1,
+    "dinero": 28,
+    "reputacion": 75,
+    "score": 2100,
+    "fecha": "2025-11-17 17:27:43"
+  },
+  {
+    "entregas": 1,
+    "dinero": 19,
+    "reputacion": 75,
+    "score": 1425,
+    "fecha": "2025-11-17 17:26:04"
+  },
+  {
+    "entregas": 1,
+    "dinero": 17,
+    "reputacion": 75,
+    "score": 1275,
+    "fecha": "2025-11-17 17:27:28"
+  },
+  {
+    "entregas": 33,
+    "dinero": 0,
+    "fecha": "2025-09-20 07:09:28"
+  }
+]

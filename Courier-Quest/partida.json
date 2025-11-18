@@ -1,0 +1,138 @@
+{
+  "jugador": {
+    "x": 387,
+    "y": 556
+  },
+  "activos": [],
+  "ofertas": [
+    {
+      "id": 10,
+      "pickup": [
+        401,
+        106,
+        42,
+        42
+      ],
+      "dropoff": [
+        27,
+        88,
+        42,
+        42
+      ],
+      "payout": 21,
+      "peso": 5,
+      "deadline": 195372,
+      "created_at": 89042,
+      "duration": 106330
+    },
+    {
+      "id": 12,
+      "pickup": [
+        298,
+        802,
+        42,
+        42
+      ],
+      "dropoff": [
+        451,
+        286,
+        42,
+        42
+      ],
+      "payout": 33,
+      "peso": 4,
+      "deadline": 220038,
+      "created_at": 101042,
+      "duration": 118996
+    },
+    {
+      "id": 13,
+      "pickup": [
+        28,
+        475,
+        42,
+        42
+      ],
+      "dropoff": [
+        200,
+        299,
+        42,
+        42
+      ],
+      "payout": 32,
+      "peso": 2,
+      "deadline": 223292,
+      "created_at": 128958,
+      "duration": 94334
+    },
+    {
+      "id": 14,
+      "pickup": [
+        1070,
+        652,
+        42,
+        42
+      ],
+      "dropoff": [
+        20,
+        81,
+        42,
+        42
+      ],
+      "payout": 11,
+      "peso": 2,
+      "deadline": 233688,
+      "created_at": 158290,
+      "duration": 75398
+    },
+    {
+      "id": 15,
+      "pickup": [
+        1322,
+        518,
+        42,
+        42
+      ],
+      "dropoff": [
+        339,
+        551,
+        42,
+        42
+      ],
+      "payout": 24,
+      "peso": 7,
+      "deadline": 248753,
+      "created_at": 181749,
+      "duration": 67004
+    },
+    {
+      "id": 16,
+      "pickup": [
+        1075,
+        498,
+        42,
+        42
+      ],
+      "dropoff": [
+        410,
+        212,
+        42,
+        42
+      ],
+      "payout": 23,
+      "peso": 8,
+      "deadline": 275823,
+      "created_at": 187989,
+      "duration": 87834
+    }
+  ],
+  "llevando_id": null,
+  "entregas": 3,
+  "energia": 100,
+  "dinero": 101,
+  "reputacion": 75,
+  "msg": "Entrega a tiempo",
+  "racha_sin_penalizacion": 1,
+  "primera_tardanza_fecha": null,
+  "dificultad": "Medio"
+}
